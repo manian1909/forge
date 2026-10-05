@@ -31,3 +31,8 @@ data/out/rejected.jsonl
 models/
 *.gguf
 *.safetensors
+
+# Built training data (regenerate with data/build_dataset.py)
+data/out/train.jsonl
+data/out/val.jsonl
+data/out/*.log
