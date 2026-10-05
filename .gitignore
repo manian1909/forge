@@ -44,3 +44,6 @@ llama.cpp/
 
 # Local binaries
 tools/
+
+# Packaged Kaggle kit
+dist/
