@@ -1,0 +1,635 @@
+{"id": "18492c183855", "category": "python_compute", "task": "What is the 50th Fibonacci number?"}
+{"id": "a78b92053bea", "category": "python_compute", "task": "How many days are there between 15 August 1947 and today?"}
+{"id": "84ac3f26114a", "category": "python_compute", "task": "Compute the compound interest on 2,50,000 rupees at 7.5% per year for 8 years, compounded quarterly."}
+{"id": "e9c80cd2cc44", "category": "python_compute", "task": "Find all prime numbers between 1000 and 1100."}
+{"id": "b363c3ea4cb5", "category": "python_compute", "task": "What is the standard deviation of 12, 15, 22, 9, 31, 18, 27?"}
+{"id": "6282e9401553", "category": "python_compute", "task": "Convert 98.6 Fahrenheit to Celsius and Kelvin."}
+{"id": "7cf7cc724ac2", "category": "python_compute", "task": "Solve the quadratic equation 3x^2 - 7x + 2 = 0."}
+{"id": "47d2724ee650", "category": "python_compute", "task": "Generate a random strong password of 16 characters with letters, digits and symbols."}
+{"id": "387bc42464d3", "category": "python_compute", "task": "What day of the week was 26 January 1950?"}
+{"id": "c4158271c177", "category": "python_compute", "task": "How many times does the digit 7 appear in all numbers from 1 to 10000?"}
+{"id": "d3e3babaabcb", "category": "python_compute", "task": "If I invest 5000 every month in a SIP with 12% annual return, how much will I have after 15 years?"}
+{"id": "2d61cd9f23b4", "category": "python_compute", "task": "Count the vowels in the sentence 'The quick brown fox jumps over the lazy dog'."}
+{"id": "958264572da3", "category": "coding", "task": "Write a Python function that checks whether a string is a palindrome, ignoring spaces and case, and test it."}
+{"id": "fb80c619d2b0", "category": "coding", "task": "Implement binary search in Python and test it on a few sorted lists, including edge cases."}
+{"id": "00b8b288e1ec", "category": "coding", "task": "Write a function to merge two sorted lists into one sorted list without using sort(), and test it."}
+{"id": "c91ab5cb6c37", "category": "coding", "task": "Write a Python class for a stack with push, pop, peek and is_empty, then demonstrate it."}
+{"id": "cc2e9ae564f6", "category": "coding", "task": "Write a function that returns the longest common prefix of a list of strings. Test it."}
+{"id": "cba9a14e33d6", "category": "coding", "task": "Implement an LRU cache class in Python with get and put in O(1) and show it working."}
+{"id": "b3b94869d35d", "category": "coding", "task": "This code has a bug, fix it and show it works: def avg(xs): return sum(xs) / len(xs) - it crashes on an empty list."}
+{"id": "0c29dd452cb0", "category": "coding", "task": "Fix this function so it returns the correct factorial: def fact(n):\n    r = 0\n    for i in range(1, n):\n        r *= i\n    return r"}
+{"id": "31affbc7b929", "category": "coding", "task": "Write a Python script that reads a CSV string of name,marks and prints the topper and the class average."}
+{"id": "adda45f102e7", "category": "coding", "task": "Write a function that flattens an arbitrarily nested list in Python. Test it on [1,[2,[3,[4]],5]]."}
+{"id": "836df877d8c1", "category": "coding", "task": "Write a Python function to validate an Indian mobile number (10 digits starting with 6-9) using regex, with tests."}
+{"id": "62e3484445c1", "category": "coding", "task": "Explain what a Python decorator is and write a small timing decorator, then run it on a slow function."}
+{"id": "411769d79976", "category": "coding", "task": "Write a two-sum solution in O(n) and test it."}
+{"id": "af023c65c9ca", "category": "coding", "task": "Write a matrix multiplication function without numpy and verify it against numpy."}
+{"id": "3ebea28a425a", "category": "files", "task": "Create a file notes/todo.md with a checklist of 5 study tasks for a DSA exam."}
+{"id": "afe946380a00", "category": "files", "task": "Create a small Python project folder called calculator with main.py and a README.md, then list the folder."}
+{"id": "2f002a93e386", "category": "files", "task": "Write a file data.csv with 10 rows of sample student data (name, age, marks), then read it back and tell me the average marks."}
+{"id": "b12b7ea6e7be", "category": "files", "task": "Create hello.py that prints a greeting, then run it."}
+{"id": "a7b7badeda96", "category": "files", "task": "Make a JSON config file config.json with keys app_name, version, debug, then read it and confirm the contents."}
+{"id": "fecab4843d89", "category": "files", "task": "Create a file poem.txt with a short poem about rain, then count its lines and words."}
+{"id": "88b4c85aed78", "category": "files", "task": "List the files in the current folder and tell me which is the largest."}
+{"id": "a5daf6ec95f2", "category": "files", "task": "Write a Python script organize.py that groups files in a folder by extension into subfolders, create a few dummy files, and run it."}
+{"id": "1a2f3b840720", "category": "shell", "task": "What version of Python is installed?"}
+{"id": "edbfdccca6b4", "category": "shell", "task": "How much free disk space is there on the C: drive?"}
+{"id": "cb423fd717ab", "category": "shell", "task": "Show the 5 processes using the most memory right now."}
+{"id": "9d84ecaaa13b", "category": "shell", "task": "What is the current date and time on this computer?"}
+{"id": "63fa2fdd5cd8", "category": "shell", "task": "Initialize a git repository in a folder called demo-repo, add a README and make a first commit."}
+{"id": "7631afa0e352", "category": "shell", "task": "How many CPU cores does this machine have?"}
+{"id": "350b47181500", "category": "shell", "task": "Show my computer's IP addresses."}
+{"id": "80c861904190", "category": "shell", "task": "Which pip packages are installed that start with 'n'?"}
+{"id": "e752996c31b6", "category": "shell", "task": "Show the environment variable PATH entries one per line."}
+{"id": "33fb689acb77", "category": "shell", "task": "Create three empty files a.txt, b.txt, c.txt using a shell command and list them."}
+{"id": "6c594b43a463", "category": "web", "task": "Search the web for the latest stable Python version and tell me what it is."}
+{"id": "d4c01496d440", "category": "web", "task": "What is llama.cpp? Search and give me a two-line summary."}
+{"id": "a3db8c5cb975", "category": "web", "task": "Fetch https://example.com and tell me what the page says."}
+{"id": "0aa6bb411a2c", "category": "web", "task": "Search for the official PyTorch installation command for CUDA on Windows."}
+{"id": "da06c33721f6", "category": "web", "task": "Find who won the most recent Cricket World Cup."}
+{"id": "5d4b14ad4ee5", "category": "web", "task": "Look up what QLoRA is and summarize it in three bullet points."}
+{"id": "508f82f9beb4", "category": "chat", "task": "Hi! Who are you?"}
+{"id": "14190db742c2", "category": "chat", "task": "Explain the difference between a process and a thread."}
+{"id": "59029f4322c8", "category": "chat", "task": "What is the time complexity of quicksort and why?"}
+{"id": "d1b4dee58de4", "category": "chat", "task": "Give me 3 tips to prepare for a coding interview."}
+{"id": "4c06620ad849", "category": "chat", "task": "Explain recursion to a beginner with a simple example."}
+{"id": "e3c437950b9c", "category": "chat", "task": "What's the difference between a list and a tuple in Python?"}
+{"id": "109301b40bd9", "category": "chat", "task": "Can you explain what a transformer model is in simple words?"}
+{"id": "f49064ae54d4", "category": "chat", "task": "I'm feeling stuck on my project, any advice?"}
+{"id": "9776dab92491", "category": "chat", "task": "Write a short professional email asking my professor for a deadline extension."}
+{"id": "30e9675aefc4", "category": "chat", "task": "What does git rebase do compared to git merge?"}
+{"id": "d7eae6bce2f4", "category": "chat", "task": "Thanks, that was helpful!"}
+{"id": "2aef25266aeb", "category": "chat", "task": "Explain Big-O notation in two sentences."}
+{"id": "f362eb4163b4", "category": "python_compute", "task": "Calculate the area of a triangle with base 8 and height 12."}
+{"id": "6c9e7ef3b372", "category": "python_compute", "task": "Write a Python script to reverse a string input."}
+{"id": "c6fb2599fa42", "category": "python_compute", "task": "Find the sum of all even numbers between 1 and 100."}
+{"id": "4f0b6f614923", "category": "python_compute", "task": "Create a function that checks if a number is a palindrome."}
+{"id": "dd08e8688676", "category": "python_compute", "task": "What is the factorial of 10?"}
+{"id": "081f2233ad71", "category": "python_compute", "task": "Generate a list of 10 random numbers between 1 and 100."}
+{"id": "f0007a7fb8af", "category": "python_compute", "task": "Compute the average of the numbers 45, 67, 89, 23, 56."}
+{"id": "8f322b18b814", "category": "python_compute", "task": "Convert the temperature from Celsius to Fahrenheit for 30°C."}
+{"id": "a02244fc4132", "category": "python_compute", "task": "What is the 10th term of the arithmetic sequence starting with 2 and a common difference of 3?"}
+{"id": "b3b66952deb9", "category": "python_compute", "task": "Find the greatest common divisor (GCD) of 48 and 18."}
+{"id": "5f0fb82e581a", "category": "python_compute", "task": "Write a Python program to check if a year is a leap year."}
+{"id": "9c43a637fb0a", "category": "python_compute", "task": "Calculate the simple interest for a principal of $5000, rate of 5%, and time of 3 years."}
+{"id": "313a744b3f21", "category": "python_compute", "task": "What is the square root of 144?"}
+{"id": "ccfdd4108472", "category": "python_compute", "task": "Create a list of all perfect squares between 1 and 100."}
+{"id": "8cc9e2af8bc6", "category": "python_compute", "task": "Calculate the area of a triangle with base 12 and height 8."}
+{"id": "53a6fbe0fdb4", "category": "python_compute", "task": "Find the roots of the quadratic equation 2x² + 5x - 3 = 0."}
+{"id": "216111f50299", "category": "python_compute", "task": "How many seconds are there in 3 weeks?"}
+{"id": "473c92067137", "category": "python_compute", "task": "Calculate the simple interest on 15000 rupees at 9% per year for 5 years."}
+{"id": "10e733ee3b8a", "category": "python_compute", "task": "What is the sum of the first 50 even numbers?"}
+{"id": "78692607d32f", "category": "python_compute", "task": "If a car travels at 60 km/h for 2 hours and then 80 km/h for 3 hours, what is the total distance?"}
+{"id": "191c23932567", "category": "python_compute", "task": "What is the volume of a sphere with radius 7 cm?"}
+{"id": "ef2dcb46e54c", "category": "python_compute", "task": "Solve the system of equations: 2x + 3y = 12 and 4x - y = 5."}
+{"id": "91631e9d55f2", "category": "python_compute", "task": "How many ways can 5 people be arranged in a line?"}
+{"id": "2088774f160c", "category": "python_compute", "task": "What is the probability of rolling a sum of 7 with two six-sided dice?"}
+{"id": "2ba6b7aff385", "category": "python_compute", "task": "Calculate the surface area of a cube with edge length 4 meters."}
+{"id": "6fbfcb48e0dd", "category": "python_compute", "task": "Convert 125 kilometers per hour to meters per second."}
+{"id": "da67f9356ffe", "category": "python_compute", "task": "What is the average of the numbers 45, 67, 89, 34, 56?"}
+{"id": "b918252c3633", "category": "python_compute", "task": "Calculate the area of a triangle with base 12 cm and height 8.5 cm."}
+{"id": "4b6abc4129b1", "category": "python_compute", "task": "Find the least common multiple of 18, 24, and 36."}
+{"id": "26c79cc4b5fc", "category": "python_compute", "task": "What is the sum of all prime numbers between 1 and 100?"}
+{"id": "9e3926ad5f1f", "category": "python_compute", "task": "Convert 150 US dollars to Indian Rupees using the current exchange rate."}
+{"id": "3e791841d756", "category": "python_compute", "task": "How many ways can you arrange the letters in the word 'MATHEMATICS'?"}
+{"id": "bc69cbb0320b", "category": "python_compute", "task": "Determine the roots of the quadratic equation 3x² - 5x + 2 = 0."}
+{"id": "67594e1e0e42", "category": "python_compute", "task": "Find the factorial of 12."}
+{"id": "278e52a188ed", "category": "python_compute", "task": "Calculate the average of the numbers 45, 38, 62, 57, and 49."}
+{"id": "037310a8d652", "category": "python_compute", "task": "Calculate the simple interest on 1,20,000 rupees at 6.25% per year for 5 years."}
+{"id": "1081e2bea74a", "category": "python_compute", "task": "Find the square root of 144.49."}
+{"id": "5dfe57f50636", "category": "python_compute", "task": "What is the mode of the dataset [3, 5, 7, 5, 9, 5, 11, 13]?"}
+{"id": "a18b87f74df4", "category": "python_compute", "task": "Generate a random 10-digit number with no repeating digits."}
+{"id": "5bdd01e75340", "category": "python_compute", "task": "Calculate the area of a circle with a radius of 14.5 meters."}
+{"id": "0c4d3a227525", "category": "python_compute", "task": "Find the factorial of 25 using Python."}
+{"id": "39b380a279eb", "category": "python_compute", "task": "What is the square root of 1369 and the cube root of 2744?"}
+{"id": "8b9be821a035", "category": "python_compute", "task": "How many seconds are there in 7 weeks?"}
+{"id": "f5e956e35179", "category": "python_compute", "task": "Convert 12 hours and 45 minutes into seconds."}
+{"id": "315e573dfe5d", "category": "python_compute", "task": "Solve the equation 3x² + 5x - 2 = 0 using the quadratic formula."}
+{"id": "1722b2948071", "category": "python_compute", "task": "Find the sum of the first 100 even numbers."}
+{"id": "d631a6549bd2", "category": "python_compute", "task": "Calculate the simple interest on 15,000 rupees at 9% per year for 3 years."}
+{"id": "7a269c2e7587", "category": "python_compute", "task": "What is the average of the numbers 12, 23, 45, 67, and 89?"}
+{"id": "14c426c50666", "category": "python_compute", "task": "Find the greatest common divisor (GCD) of 48 and 64."}
+{"id": "0b4180d34fdb", "category": "python_compute", "task": "Calculate the perimeter of a rectangle with length 12 and width 8."}
+{"id": "87789b3b77ab", "category": "python_compute", "task": "What is the volume of a cube with side length 5.5 cm?"}
+{"id": "a3a9eb630bf4", "category": "python_compute", "task": "How many seconds are there in 2 days and 10 hours?"}
+{"id": "29b57f0fa2a0", "category": "python_compute", "task": "Calculate the mean, median, and mode of the dataset [3, 5, 7, 5, 9, 5, 11]."}
+{"id": "0892079fccd7", "category": "python_compute", "task": "Calculate the sum of the first 500 even numbers."}
+{"id": "1dd0ca29526f", "category": "python_compute", "task": "Find the greatest common divisor (GCD) of 144 and 108."}
+{"id": "fb148206ce70", "category": "python_compute", "task": "Write a Python function to check if a number is a palindrome."}
+{"id": "1225da9a8a59", "category": "python_compute", "task": "What is the factorial of 20?"}
+{"id": "46222607468a", "category": "python_compute", "task": "Calculate the area of a circle with a radius of 7.5 meters."}
+{"id": "092c982f9bcf", "category": "python_compute", "task": "How many seconds are there in a non-leap year?"}
+{"id": "d45e22c16a31", "category": "python_compute", "task": "Find the square root of 144 and the cube root of 27."}
+{"id": "b6afacbf2ea8", "category": "python_compute", "task": "Calculate the volume of a sphere with a radius of 3 units."}
+{"id": "557883f62986", "category": "python_compute", "task": "Write a script to generate the first 10 Fibonacci numbers."}
+{"id": "62c485a6f5b0", "category": "python_compute", "task": "What is the value of π to 10 decimal places?"}
+{"id": "a659cfd4f135", "category": "python_compute", "task": "Calculate the compound interest for $1000 at 5% annual rate over 10 years."}
+{"id": "64cc977e078f", "category": "python_compute", "task": "Find the missing number in the sequence: 2, 4, 8, 16, ?, 64."}
+{"id": "f23f73a4d660", "category": "python_compute", "task": "What is the binary representation of the decimal number 123?"}
+{"id": "4d29544a4b30", "category": "python_compute", "task": "Find the sum of all even numbers between 1 and 1000."}
+{"id": "9569a409ad4b", "category": "python_compute", "task": "Convert 150 degrees Fahrenheit to Celsius."}
+{"id": "7fc80b8628a6", "category": "python_compute", "task": "How many prime numbers are there between 1 and 100?"}
+{"id": "5e5add63c0cb", "category": "python_compute", "task": "Find the square root of 256 and cube it."}
+{"id": "5edc5cd3f667", "category": "python_compute", "task": "Create a list of the first 20 multiples of 7."}
+{"id": "1a2d3731220d", "category": "python_compute", "task": "What is the average of the numbers 4, 8, 15, 16, 23, 42?"}
+{"id": "60bc893ee844", "category": "python_compute", "task": "Calculate the volume of a sphere with radius 3."}
+{"id": "ab0e66139f14", "category": "python_compute", "task": "Find the missing number in the sequence: 3, 6, 12, 24, ?, 96."}
+{"id": "29c182b7794b", "category": "python_compute", "task": "What is the sum of the first 50 natural numbers?"}
+{"id": "9c0d7bdd7019", "category": "python_compute", "task": "Generate a list of 10 random integers between 1 and 100."}
+{"id": "998b34f60f97", "category": "python_compute", "task": "What is the 10th term of the arithmetic sequence starting at 5 with a common difference of 4?"}
+{"id": "82c2ed224eda", "category": "python_compute", "task": "Find the prime factors of 1024."}
+{"id": "2ea7bb8473ac", "category": "python_compute", "task": "What is the sum of the first 100 even numbers?"}
+{"id": "8ac196de820f", "category": "python_compute", "task": "Create a Python script that reads a CSV file and outputs the average of a specific column."}
+{"id": "380741cbf46c", "category": "python_compute", "task": "Find the square root of -16 and explain the result."}
+{"id": "e81d24cf5928", "category": "python_compute", "task": "How many seconds are there in 3 years, 2 months, and 15 days?"}
+{"id": "3ea5b52c4fa4", "category": "python_compute", "task": "Write a function that reverses a string without using slicing."}
+{"id": "b1394a0693b5", "category": "python_compute", "task": "Calculate the factorial of 20 using recursion."}
+{"id": "3f5a862d03d8", "category": "python_compute", "task": "What is the value of π to 100 decimal places?"}
+{"id": "7131e1ff8c4b", "category": "python_compute", "task": "Generate a list of 10 random numbers between 1 and 1000, then sort them in descending order."}
+{"id": "f723f8151293", "category": "python_compute", "task": "Convert the hexadecimal number 'A3F' to decimal and binary."}
+{"id": "19323600750d", "category": "python_compute", "task": "Calculate the compound interest for $5000 at 5% annual rate over 10 years."}
+{"id": "c6086a042bb2", "category": "python_compute", "task": "Find the roots of the cubic equation x³ - 6x² + 11x - 6 = 0."}
+{"id": "5c7f3fed7276", "category": "python_compute", "task": "What is the 10th term in the sequence defined by a_n = 3n² + 2n - 1?"}
+{"id": "ca6a0c5a622c", "category": "coding", "task": "Create a Python script that reads a CSV file, filters rows where the 'status' column is 'completed', and writes them to a new CSV file."}
+{"id": "8bb7f280a372", "category": "coding", "task": "Write a Python function that takes a list of integers and returns the product of all even numbers in the list, handling empty lists gracefully."}
+{"id": "8e91d5fb3c71", "category": "coding", "task": "Implement a simple HTTP server in Python using the built-in http.server module that serves a static HTML file and responds to GET requests."}
+{"id": "969292420341", "category": "coding", "task": "Design a Python class for a linked list with methods to add nodes at the beginning, end, and middle, and implement a method to print the list."}
+{"id": "a14daa91b59a", "category": "coding", "task": "Write a script that uses the requests library to fetch the content of a webpage, parse it with BeautifulSoup, and count how many times the word 'Python' appears."}
+{"id": "f3dee2242aa1", "category": "coding", "task": "Create a Python script that generates a random password of length 12, containing uppercase letters, lowercase letters, and numbers, and saves it to a file."}
+{"id": "957c5d7bfb29", "category": "coding", "task": "Build a simple command-line calculator in Python that supports addition, subtraction, multiplication, and division with error handling for division by zero."}
+{"id": "b98b13418f60", "category": "coding", "task": "Write a Python function that takes a string and returns the longest palindromic substring, including edge cases like empty strings and single characters."}
+{"id": "8582af22a4e3", "category": "coding", "task": "Implement a basic version of the game 'Rock, Paper, Scissors' in Python using a loop that allows the user to play multiple rounds against the computer."}
+{"id": "bb9aa1b69a61", "category": "coding", "task": "Create a Python script that uses the datetime module to calculate the number of days between two given dates, including leap years and different month lengths."}
+{"id": "8091b5742d8c", "category": "coding", "task": "Write a Python function that takes a list of numbers and returns a new list containing only the unique elements in the original list, preserving order."}
+{"id": "b937464abb4f", "category": "coding", "task": "Build a simple web scraper in Python using requests and BeautifulSoup to extract all links from a given webpage and save them to a text file."}
+{"id": "e53568d44f10", "category": "coding", "task": "Design a Python program that simulates a basic bank account with deposit, withdrawal, and balance-checking functionality, using a class-based approach."}
+{"id": "57ddf9709061", "category": "coding", "task": "Write a Python script that takes a directory path as input and prints the total size of all files in that directory, including subdirectories."}
+{"id": "e12acf420831", "category": "coding", "task": "Create a Python script that takes a directory path and prints all files with .txt extensions, along with their sizes."}
+{"id": "5a3ae3ab3763", "category": "coding", "task": "Implement a simple HTTP server in Python that serves static files from a given directory."}
+{"id": "3586ce6e861c", "category": "coding", "task": "Write a Python function that calculates the Fibonacci sequence up to n terms using recursion and memoization."}
+{"id": "d01b6734c7b6", "category": "coding", "task": "Design a command-line tool in Python that converts temperatures between Celsius, Fahrenheit, and Kelvin."}
+{"id": "174da31f2aea", "category": "coding", "task": "Write a PowerShell script that lists all running processes and exports them to a CSV file."}
+{"id": "bec6ee3ff71e", "category": "coding", "task": "Create a Python function that reverses a string without using slicing or built-in reverse methods."}
+{"id": "b1c4f5c617e2", "category": "coding", "task": "Build a simple web scraper in Python that extracts all links from a given webpage."}
+{"id": "09b9984c8d75", "category": "coding", "task": "Write a Python script that reads a JSON file, parses it, and writes the data to a SQLite database."}
+{"id": "4a960daef8ec", "category": "coding", "task": "Implement a basic calculator in Python with addition, subtraction, multiplication, and division."}
+{"id": "f6ea87ab34e6", "category": "coding", "task": "Create a PowerShell script that checks the disk usage of a specified drive and sends an email alert if it exceeds 90%."}
+{"id": "4bb34c05d1b2", "category": "coding", "task": "Write a Python function that finds the longest common prefix among an array of strings."}
+{"id": "5497507b747d", "category": "coding", "task": "Design a Python script that generates random passwords of varying lengths and complexity."}
+{"id": "e40e3e331bd6", "category": "coding", "task": "Create a simple web app using Flask that allows users to upload an image and displays it back."}
+{"id": "7214e16e2a20", "category": "coding", "task": "Write a Python function that determines if a given year is a leap year."}
+{"id": "1bbb1930e6d7", "category": "coding", "task": "Create a Python script that takes a directory path and prints the size of each file in MB, sorted by largest to smallest."}
+{"id": "f56e77b6357e", "category": "coding", "task": "Implement a simple HTTP server in Python that serves a static HTML file and handles GET requests."}
+{"id": "ab615b5d058b", "category": "coding", "task": "Fix this Python function to correctly calculate the sum of a list of numbers: def sum_list(lst): return lst[0] + sum_list(lst[1:]) if lst else 0"}
+{"id": "f5f99ab33531", "category": "coding", "task": "Write a Python function that reverses a string in-place and test it with multiple examples."}
+{"id": "ebe75b71d6e7", "category": "coding", "task": "Create a Python program that converts a given number of seconds into hours, minutes, and seconds."}
+{"id": "44e3907adee4", "category": "coding", "task": "Implement a bubble sort algorithm in Python and compare its performance with the built-in sort function."}
+{"id": "f661823c518a", "category": "coding", "task": "Write a PowerShell script that renames all .txt files in a folder by adding a prefix 'data_' to each name."}
+{"id": "1e44af213b97", "category": "coding", "task": "Design a Python class for a basic stack data structure with push, pop, and peek methods."}
+{"id": "d64586d2c047", "category": "coding", "task": "Create a Python script that searches for a specific word in all text files within a folder and counts its occurrences."}
+{"id": "2559046d8600", "category": "coding", "task": "Write a function in Python that checks if a given string is a palindrome, ignoring spaces and punctuation."}
+{"id": "496f65d02757", "category": "coding", "task": "Implement a simple command-line calculator in Python that supports addition, subtraction, multiplication, and division."}
+{"id": "8cec6a25670f", "category": "coding", "task": "Write a Python script that reads a CSV file and writes the first 10 rows to a new file with a different delimiter."}
+{"id": "2009b38158dc", "category": "coding", "task": "Create a Python function that generates a random password of length 12 using uppercase, lowercase, digits, and symbols."}
+{"id": "6643f0c8b9e0", "category": "coding", "task": "Create a Python script that takes a directory path and prints all files with a .txt extension, along with their file sizes."}
+{"id": "8032314853fc", "category": "coding", "task": "Write a PowerShell script that renames all .txt files in a folder to have a .log extension."}
+{"id": "f671e3bb84fd", "category": "coding", "task": "Write a Python function that calculates the factorial of a number using recursion and test it for values up to 1000."}
+{"id": "f479c14f4138", "category": "coding", "task": "Explain how to use the Python `re` module and write a script that finds all email addresses in a given text file."}
+{"id": "c732cf3fd9a1", "category": "coding", "task": "Write a Python script that reads a JSON file, modifies a specific key-value pair, and writes the changes back."}
+{"id": "51a0055f050d", "category": "coding", "task": "Create a Python program that simulates a basic calculator with addition, subtraction, multiplication, and division."}
+{"id": "a2c02ed12fbe", "category": "coding", "task": "Write a PowerShell script that checks the disk usage of a folder and alerts if it exceeds 90%."}
+{"id": "40085bb4b517", "category": "coding", "task": "Implement a Python program that generates a random password with at least 12 characters including letters, numbers, and symbols."}
+{"id": "41fe6b629163", "category": "coding", "task": "Write a Python script that converts a CSV file to a JSON file, preserving the structure of the data."}
+{"id": "604a2b5ca116", "category": "coding", "task": "Create a simple web scraper in Python that extracts all links from a given webpage and saves them to a text file."}
+{"id": "80d0b0900630", "category": "coding", "task": "Explain how to use Python’s `argparse` module and write a script that accepts command-line arguments for file input and output."}
+{"id": "28af2f53f0f5", "category": "coding", "task": "Write a Python function that checks if a string is a palindrome, ignoring spaces and punctuation."}
+{"id": "a819e4848ffc", "category": "coding", "task": "Implement a basic version of the game 'Rock, Paper, Scissors' in Python using a loop for multiple rounds."}
+{"id": "b426bcb90c9d", "category": "coding", "task": "Create a Python script that takes a list of numbers and returns the median value."}
+{"id": "582ea56f0ad1", "category": "coding", "task": "Implement a binary search algorithm in Python and test it on a sorted list."}
+{"id": "87e98231080b", "category": "coding", "task": "Write a script that generates the first 10 Fibonacci numbers using recursion and iteration."}
+{"id": "815d3de133a5", "category": "coding", "task": "Design a Python function that checks if a given string is a palindrome, ignoring spaces and case."}
+{"id": "7ac635d8488f", "category": "coding", "task": "Build a simple calculator in Python that supports addition, subtraction, multiplication, and division."}
+{"id": "e8f336f7fd4f", "category": "coding", "task": "Write a Python program that reverses a string without using the reverse() method."}
+{"id": "8aa45f83ac3b", "category": "coding", "task": "Create a function in Python that counts the frequency of each character in a given string."}
+{"id": "788abd9dfe73", "category": "coding", "task": "Implement a bubble sort algorithm in Python and test it with a list of integers."}
+{"id": "50e26057ac76", "category": "coding", "task": "Write a Python script that reads a text file and counts the number of words in it."}
+{"id": "a11b301e5b5c", "category": "coding", "task": "Build a simple HTTP server in Python using the http.server module that serves a static HTML file."}
+{"id": "6c4f19f4bc2b", "category": "coding", "task": "Create a Python function that calculates the factorial of a number using both iterative and recursive methods."}
+{"id": "36bc5265cf6a", "category": "coding", "task": "Write a script that finds all prime numbers up to a given number using the Sieve of Eratosthenes."}
+{"id": "faec1ad60a00", "category": "coding", "task": "Design a Python function that takes a list of integers and returns the second largest number."}
+{"id": "7e65b97bea3d", "category": "coding", "task": "Implement a simple command-line to-do list application in Python with add, list, and delete functionality."}
+{"id": "6cd539afc555", "category": "coding", "task": "Write a script that converts a given string to lowercase and removes all non-alphanumeric characters."}
+{"id": "d62f5ff9c8b6", "category": "coding", "task": "Create a Python script that reads a CSV file and writes the first 10 rows to a new CSV file."}
+{"id": "de43bde12b88", "category": "coding", "task": "Write a PowerShell script that lists all the installed software on a Windows machine."}
+{"id": "0e9366104ca7", "category": "coding", "task": "Implement a simple calculator in Python with add, subtract, multiply, and divide functions."}
+{"id": "3450ae1a010b", "category": "coding", "task": "Fix the following Python code so it correctly calculates the Fibonacci sequence: def fib(n): return fib(n-1) + fib(n-2) if n > 0 else 0"}
+{"id": "89fdfdca8986", "category": "coding", "task": "Write a Python function that takes a string and returns the number of vowels in it, case-insensitive."}
+{"id": "03978a2e4634", "category": "coding", "task": "Create a Python script that generates a random password of length 12 using letters, numbers, and symbols."}
+{"id": "bd2be4ccee0b", "category": "coding", "task": "Implement a Python class for a queue with enqueue, dequeue, and size methods, and test it."}
+{"id": "e1af973ca191", "category": "coding", "task": "Write a Python function that checks if a given year is a leap year and test it with multiple examples."}
+{"id": "f1cf67da76a4", "category": "coding", "task": "Design a simple command-line interface in Python that allows the user to add, view, and delete contacts."}
+{"id": "fca065bee876", "category": "coding", "task": "Create a PowerShell script that deletes all temporary files in the system's temporary directory."}
+{"id": "a9a863a60980", "category": "coding", "task": "Write a Python function that takes a list of numbers and returns the median value."}
+{"id": "0beabdcb3842", "category": "coding", "task": "Implement a Python function that reverses a string without using slicing or built-in reverse functions."}
+{"id": "aa27323c0c53", "category": "coding", "task": "Create a Python script that uses the requests library to fetch data from a public API and print it."}
+{"id": "c5d7d43d7cba", "category": "coding", "task": "Write a PowerShell script that displays the current date and time in different time zones."}
+{"id": "64bcccd17014", "category": "coding", "task": "Create a Python script that reads a CSV file and prints the first 5 rows."}
+{"id": "7813007d40b6", "category": "coding", "task": "Implement a binary search algorithm in Python and test it with a sorted list."}
+{"id": "1f50effa0a0e", "category": "coding", "task": "Design a simple command-line calculator in Python that supports addition, subtraction, multiplication, and division."}
+{"id": "3a4f1e08725f", "category": "coding", "task": "Write a function to check if a number is a perfect square without using math.sqrt(), and test it."}
+{"id": "2a580182da7f", "category": "coding", "task": "Build a Python program that takes a string input and counts the frequency of each character."}
+{"id": "73200c7930b5", "category": "coding", "task": "Develop a Python script that generates a random password with at least 12 characters, including letters, numbers, and symbols."}
+{"id": "3ed5c53d7573", "category": "coding", "task": "Create a function that reverses a linked list in Python without using extra space, and test it."}
+{"id": "768759407422", "category": "coding", "task": "Write a Python script that searches for a specific file in a directory and its subdirectories."}
+{"id": "501d5a0f79c4", "category": "coding", "task": "Implement a simple HTTP server in Python using the built-in http.server module."}
+{"id": "52cc40cf8101", "category": "coding", "task": "Design a Python class for a queue with enqueue, dequeue, and size methods, then demonstrate its usage."}
+{"id": "a3f0a5ae66e5", "category": "coding", "task": "Write a Python function to find the missing number in a list of integers from 1 to n."}
+{"id": "c74b2b745e51", "category": "coding", "task": "Create a script that converts a given time in 24-hour format to 12-hour format with AM/PM."}
+{"id": "3c27f4734c4f", "category": "coding", "task": "Implement a function to calculate the factorial of a number using recursion and test it."}
+{"id": "30d5b0c59546", "category": "coding", "task": "Write a Python function that finds all anagrams of a given word in a list of words."}
+{"id": "969df4977d1f", "category": "files", "task": "Create a Python script that generates a random password of 12 characters and saves it to a file called password.txt."}
+{"id": "e72e6337f44a", "category": "files", "task": "Write a PowerShell script that renames all .txt files in the current folder by adding '_backup' to the end of their names."}
+{"id": "a778472656f4", "category": "files", "task": "Generate a sample CSV file with 10 rows of dummy data about books, including title, author, and year."}
+{"id": "2ebc48d9af85", "category": "files", "task": "Create a folder called 'logs' and a file called 'server.log' with some dummy log entries, then show the folder structure."}
+{"id": "2148aee86083", "category": "files", "task": "Write a Python program that reads a text file, counts the number of words, and writes the result to a new file called 'word_count.txt'."}
+{"id": "d534ca8daf5a", "category": "files", "task": "Create a Python script that searches for all .py files in the current directory and prints their names."}
+{"id": "6c3509d84375", "category": "files", "task": "Make a file called 'contacts.txt' with 5 dummy contact entries, then sort them alphabetically by name."}
+{"id": "37a002deee41", "category": "files", "task": "Write a PowerShell script that deletes all empty files in the current directory."}
+{"id": "98312e0b83ab", "category": "files", "task": "Generate a Markdown file called 'plan.md' with a weekly study schedule for a machine learning course."}
+{"id": "2b467c2d2b1c", "category": "files", "task": "Create a JSON file called 'settings.json' with keys like theme, language, and auto_save, then read and display its contents."}
+{"id": "64b7cefa3efc", "category": "files", "task": "Write a Python script that converts all .txt files in a folder to .md format and adds a header."}
+{"id": "06ae50c2e01b", "category": "files", "task": "Make a file called 'weather.txt' with a fake weather report for today, then extract the temperature and display it."}
+{"id": "d9548f04b539", "category": "files", "task": "Create a folder called 'data' and inside it, generate 3 subfolders named 'raw', 'processed', and 'backup'."}
+{"id": "fd88e4ea97dc", "category": "files", "task": "Write a Python program that reads a CSV file and prints the first 5 rows to the console."}
+{"id": "1756e600e0b1", "category": "files", "task": "Create a file called 'notes.md' with a markdown table listing 5 tasks and their due dates for a project."}
+{"id": "0d82ce95cc24", "category": "files", "task": "Generate a Python script that reads a text file and counts the number of vowels, then output the result."}
+{"id": "4a1afd2dbe3f", "category": "files", "task": "Create a PowerShell script that lists all the files in the current directory and sorts them by size."}
+{"id": "b50d8fbcb2b8", "category": "files", "task": "Write a CSV file called employees.csv with columns Name, Department, and Salary, then read it and show the total salary."}
+{"id": "02974b4f685c", "category": "files", "task": "Make a JSON file called settings.json with keys username and theme, then read it and display the values."}
+{"id": "3fc70d70621d", "category": "files", "task": "Write a Python program that converts Celsius to Fahrenheit and saves the output to a file called temp_conversion.txt."}
+{"id": "7010a3ad93ad", "category": "files", "task": "Create a folder called projects and inside it, create two Python files: main.py and utils.py, then list the folder contents."}
+{"id": "e8c9ac91b4d3", "category": "files", "task": "Generate a PowerShell script that renames all .txt files in the current directory to have a .log extension."}
+{"id": "18a9cc5b3be6", "category": "files", "task": "Write a simple web scraper in Python that fetches the title of a webpage and saves it to a file called titles.txt."}
+{"id": "2136448f21f2", "category": "files", "task": "Create a Python script that takes a list of numbers as input and returns the sum, average, and product of those numbers."}
+{"id": "77ace462135d", "category": "files", "task": "Make a file called notes.txt and add three lines of notes, then read the file and display its contents."}
+{"id": "f82165c51c1e", "category": "files", "task": "Write a Python script that calculates the factorial of a number and prints the result."}
+{"id": "c2ebb7e5b256", "category": "files", "task": "Create a folder called images and copy all .jpg files from the current directory into it."}
+{"id": "5159c8bdd19b", "category": "files", "task": "Generate a Python script that writes the current date and time to a file called log.txt every minute for 5 minutes."}
+{"id": "3375ac7b3052", "category": "files", "task": "Create a PowerShell script that checks the size of all files in the current directory and displays the largest one."}
+{"id": "e1cbf57445f5", "category": "files", "task": "Create a Python script that generates a random password with at least 12 characters and saves it to a file called password.txt."}
+{"id": "66685d6389de", "category": "files", "task": "Write a PowerShell script that renames all .txt files in a folder to have a .log extension, then verify the change."}
+{"id": "2c3b01d28a1a", "category": "files", "task": "Create a simple web scraper using Python that fetches the title of a webpage and saves it to a file."}
+{"id": "7ae452e07336", "category": "files", "task": "Build a Python program that converts temperatures between Celsius and Fahrenheit, and save the functions in a module called temp_utils.py."}
+{"id": "7355854843e2", "category": "files", "task": "Make a folder called notes and create three text files inside it: morning.txt, afternoon.txt, and evening.txt, each with a sample note."}
+{"id": "fba7e588d463", "category": "files", "task": "Write a Python script that reads a CSV file containing student names and grades, then outputs the highest and lowest scores."}
+{"id": "c0d239c9023d", "category": "files", "task": "Create a JSON file called settings.json with keys theme, font_size, and language, then load and display the values in the console."}
+{"id": "351a9ddfafe2", "category": "files", "task": "Generate a Python script that takes a user input for a number and calculates the factorial using recursion, then print the result."}
+{"id": "4866d3787095", "category": "files", "task": "Write a PowerShell script that checks the disk usage of the current drive and displays how much free space is left."}
+{"id": "21b6aa1aaf97", "category": "files", "task": "Create a Python program that takes a list of numbers as input and returns the mean, median, and mode of the dataset."}
+{"id": "65c291addcef", "category": "files", "task": "Make a folder structure for a basic Flask app: app.py, templates/index.html, and static/style.css, then list the contents."}
+{"id": "e48a43b65eb2", "category": "files", "task": "Write a Python script that searches for all occurrences of a specific word in a text file and counts how many times it appears."}
+{"id": "3d49ff900be3", "category": "files", "task": "Create a file called test.txt with some sample text, then use PowerShell to count the number of lines in the file."}
+{"id": "ff28dc4da7b4", "category": "files", "task": "Build a Python script that reads a text file, removes all punctuation, and writes the cleaned text to a new file."}
+{"id": "f542c0573d6f", "category": "files", "task": "Generate a Python script that calculates the factorial of a number and test it with 5, 7, and 10."}
+{"id": "4156ea2a75f2", "category": "files", "task": "Create a text file called 'quotes.txt' with 10 famous quotes, then count how many lines are in it."}
+{"id": "1001065ac16c", "category": "files", "task": "Write a PowerShell script that displays the current system uptime and CPU usage."}
+{"id": "345c941725e5", "category": "files", "task": "Make a CSV file called 'employees.csv' with columns name, department, and salary, then read the file and sum the salaries."}
+{"id": "8a56ad6d9151", "category": "files", "task": "Create a simple web scraper using Python to fetch the titles of the first 5 articles from a news website."}
+{"id": "5a4328d24551", "category": "files", "task": "Generate a Markdown file 'project_plan.md' with sections: Introduction, Goals, Timeline, and Team Members."}
+{"id": "e3f51f399362", "category": "files", "task": "Write a Python function that converts Celsius to Fahrenheit and save it in a file called 'temp_utils.py'."}
+{"id": "4f1a9797e23a", "category": "files", "task": "Create a folder called 'logs' and generate 3 sample log files with timestamps and error messages."}
+{"id": "0d53e1a972c9", "category": "files", "task": "Build a Python script that reads a text file and counts the frequency of each word."}
+{"id": "3cb16813c71b", "category": "files", "task": "Create a file called 'passwords.txt' with 5 random passwords, then display them in the console."}
+{"id": "d38c923e8e87", "category": "files", "task": "Generate a JSON file 'users.json' with 3 user entries, then load it and print the first user's details."}
+{"id": "600aa07491ef", "category": "files", "task": "Write a Python script that checks if a given year is a leap year and test it with 2000, 2012, and 2023."}
+{"id": "581782fe8bb6", "category": "files", "task": "Create a file 'notes.md' with a markdown table listing 5 programming languages and their release years."}
+{"id": "4f8007bde161", "category": "files", "task": "Build a simple to-do list application in Python that allows adding and removing tasks from a list."}
+{"id": "02471d5389b8", "category": "files", "task": "Generate a Python script that converts temperatures between Celsius and Fahrenheit, then test it with sample values."}
+{"id": "150f32164f81", "category": "files", "task": "Create a PowerShell script that lists all folders in the current directory and their sizes, then output the result to a text file."}
+{"id": "9030c6045ba1", "category": "files", "task": "Write a Python program that reads a CSV file containing product data and writes a new file with only items priced over $50."}
+{"id": "10d8f7fdcc15", "category": "files", "task": "Make a simple web scraper in Python using requests and BeautifulSoup to fetch and save the first 5 headlines from a news website."}
+{"id": "b93197fc2649", "category": "files", "task": "Create a file called 'study_schedule.txt' with a weekly plan for a CS course, including daily study goals and deadlines."}
+{"id": "53a718e7ff96", "category": "files", "task": "Build a Python script that takes a directory path as input and renames all files in it by adding a prefix 'v1_' to their names."}
+{"id": "a3bc009fa625", "category": "files", "task": "Write a PowerShell script that deletes all temporary files (like .tmp and .log files) in the current directory."}
+{"id": "9ece1162b75c", "category": "files", "task": "Create a JSON file called 'inventory.json' with an array of 5 items, then load it in Python and print the total number of items."}
+{"id": "b93b86bca3df", "category": "files", "task": "Make a Python script that generates a random password of 12 characters, including uppercase, lowercase, and numbers, and saves it to a file."}
+{"id": "5d7f83c63aba", "category": "files", "task": "Write a Python function that calculates the factorial of a number using recursion, then test it with numbers from 1 to 10."}
+{"id": "73a99d3e7d80", "category": "files", "task": "Create a file called 'todo.txt' with 10 sample tasks, then read the file and count how many tasks are marked as completed."}
+{"id": "53b1e4b3c1d8", "category": "files", "task": "Build a simple command-line calculator in Python that supports addition, subtraction, multiplication, and division."}
+{"id": "39ffc18c4256", "category": "files", "task": "Make a PowerShell script that searches for all .txt files in the current directory and copies them to a 'backup' subfolder."}
+{"id": "ac336e717fc4", "category": "files", "task": "Write a Python script that reads a text file, counts the number of words, and prints the result."}
+{"id": "e650b5839ac4", "category": "files", "task": "Generate a Python script that converts all .txt files in a folder to .md format and saves them in a new subfolder."}
+{"id": "708342c8f9a0", "category": "files", "task": "Create a PowerShell script that lists all hidden files in the current directory and saves the output to a file called hidden_files.txt."}
+{"id": "da7ea2b7b3f8", "category": "files", "task": "Write a Python program that calculates the factorial of a number using recursion and prints the result."}
+{"id": "c0b7eb857948", "category": "files", "task": "Create a file called contacts.csv with 5 sample contact entries (name, email, phone), then read and display the contents."}
+{"id": "3601dc04fbff", "category": "files", "task": "Make a Python script that downloads images from a given URL list and saves them to a folder called images."}
+{"id": "94469742f673", "category": "files", "task": "Write a PowerShell command to rename all .log files in a directory to have a prefix 'log_' and a suffix '.bak'."}
+{"id": "d84db64b1ff5", "category": "files", "task": "Create a file called weather.txt that contains a mock weather report for today, then append a forecast for tomorrow."}
+{"id": "8fae4719fa3a", "category": "files", "task": "Generate a Python script that uses the requests library to fetch the content of a webpage and save it as a text file."}
+{"id": "df4f5c0ea672", "category": "files", "task": "Create a folder called 'scripts' and inside it, write a Python script called 'greet.py' that prints 'Hello, World!' when run."}
+{"id": "8d4fe3c8335a", "category": "files", "task": "Write a PowerShell script that creates a new text file called 'log.txt' and writes the current date and time to it."}
+{"id": "05bb8a687d7a", "category": "files", "task": "Create a Python program that takes user input for name and age, then prints a message like 'Hello, [Name], you are [Age] years old.'"}
+{"id": "7c5b007ddeff", "category": "files", "task": "Generate a file called 'README.md' with a basic structure for a GitHub project, including a description and installation instructions."}
+{"id": "9a3e5cc04458", "category": "files", "task": "Write a Python function that reverses a string and test it with a few examples, then print the results."}
+{"id": "eac628d2cf84", "category": "files", "task": "Create a PowerShell script that moves all .jpg files from the current directory to a subfolder called 'images'."}
+{"id": "9c974b716ab4", "category": "files", "task": "Generate a Python script that converts all .txt files in a folder to .md format and adds a header."}
+{"id": "41ebfa7cba83", "category": "files", "task": "Create a file called weather.txt with today's weather forecast from the internet, then display it."}
+{"id": "a2e0a6cf17e5", "category": "files", "task": "Write a PowerShell script that lists all files modified in the last 24 hours and saves the output to a log file."}
+{"id": "45b88c5bb8c1", "category": "files", "task": "Create a CSV file called books.csv with columns Title, Author, Year, and add 5 sample entries."}
+{"id": "d110bd735bea", "category": "files", "task": "Write a Python script that reads a CSV file and prints the number of rows and columns."}
+{"id": "c2b465831e38", "category": "files", "task": "Create a file called contacts.txt with 10 sample contact entries (name, email, phone), then sort them by name."}
+{"id": "ec96300c782c", "category": "files", "task": "Generate a JSON file called settings.json with keys theme, language, and timezone, then load and display the values."}
+{"id": "2050c0f60bf7", "category": "files", "task": "Write a Python script that searches for all .py files in a folder and prints their names and last modified date."}
+{"id": "2f2ed17d1740", "category": "files", "task": "Create a file called tasks.txt with a to-do list for a project, then split it into separate files by task category."}
+{"id": "1e802544c7ff", "category": "files", "task": "Write a PowerShell script that renames all files in a folder by adding a prefix 'backup_' to their names."}
+{"id": "0e0653716b45", "category": "files", "task": "Create a file called log.txt and append 10 lines of sample log entries, then count the total lines."}
+{"id": "b115abc4aaed", "category": "files", "task": "Generate a Python script that creates a folder structure for a web project (html, css, js, images) and adds dummy files."}
+{"id": "6a068eeb5ca4", "category": "files", "task": "Write a script that generates a random password of 12 characters and saves it to a file called secure_password.txt."}
+{"id": "e7808b9fb501", "category": "files", "task": "Create a file called stats.txt with random numbers and calculate the sum, average, and standard deviation."}
+{"id": "f9d47677ad0d", "category": "files", "task": "Write a Python script that reads a text file and counts the frequency of each word, then outputs the top 10."}
+{"id": "791a5e33931c", "category": "shell", "task": "What is the size of the folder where this script is running?"}
+{"id": "46c874476a05", "category": "shell", "task": "List all the files in this directory that end with .py"}
+{"id": "48d3e01ba266", "category": "shell", "task": "How many lines are in the file 'example.txt'?"}
+{"id": "08b19ba0b266", "category": "shell", "task": "Show the last 10 lines of the log file 'app.log'"}
+{"id": "d62e4e3581fd", "category": "shell", "task": "Find and display all files containing the word 'error' in their content"}
+{"id": "93e0180caf2a", "category": "shell", "task": "What is the MD5 hash of the file 'data.csv'?"}
+{"id": "af3ad74293f9", "category": "shell", "task": "Run a Python script called 'script.py' and show the output"}
+{"id": "d0bb605dc8bc", "category": "shell", "task": "Check if the file 'config.json' exists and display its contents"}
+{"id": "63b23049a9a8", "category": "shell", "task": "Create a new folder named 'backup' if it doesn't already exist"}
+{"id": "1f04ec03c09a", "category": "shell", "task": "Rename the file 'old_report.txt' to 'new_report.txt'"}
+{"id": "40bf04e1a894", "category": "shell", "task": "Delete all empty files in the current directory"}
+{"id": "cedef5909c85", "category": "shell", "task": "Find and display the largest file in this directory"}
+{"id": "673123703df1", "category": "shell", "task": "Show the disk usage of the current directory in a tree format"}
+{"id": "970d6d7a83e4", "category": "shell", "task": "What is the total size of all files in this directory?"}
+{"id": "5bb237b8b068", "category": "shell", "task": "Find and delete all temporary files in the current directory."}
+{"id": "075f41d1e1c9", "category": "shell", "task": "List all the files in this folder that end with .log."}
+{"id": "5eb04a085dfd", "category": "shell", "task": "Check if Python 3.10 is installed and display its version."}
+{"id": "870973d777fc", "category": "shell", "task": "Show the current working directory and the user's home directory."}
+{"id": "74ef072d7314", "category": "shell", "task": "Run a Python script called test.py and show its output."}
+{"id": "5a8db846f92a", "category": "shell", "task": "Search for any files in this folder that contain the word 'error' in their names."}
+{"id": "31c663c340d7", "category": "shell", "task": "Display the disk usage of the current directory in a tree format."}
+{"id": "c82e9af784c8", "category": "shell", "task": "Show the top 10 most used commands in the shell history."}
+{"id": "abd09ea4a814", "category": "shell", "task": "Create a directory called 'data' and list its contents."}
+{"id": "f14bca3f620a", "category": "shell", "task": "Find and kill all processes named 'python' that are running."}
+{"id": "f3a97392556b", "category": "shell", "task": "Show the current date and time in the format 'YYYY-MM-DD HH:MM:SS'."}
+{"id": "f8240953b38e", "category": "shell", "task": "List all hidden files in this directory."}
+{"id": "e0d5f9f89e26", "category": "shell", "task": "Search the web for 'how to install Flask on Windows' and show the first result."}
+{"id": "1586cd0d91b6", "category": "shell", "task": "Display the system's uptime and the number of active processes."}
+{"id": "b9e6977bf2ba", "category": "shell", "task": "What is the size of the current directory in bytes?"}
+{"id": "2999f39683f0", "category": "shell", "task": "Find and display all files in this folder that end with .log"}
+{"id": "74dedc5ec490", "category": "shell", "task": "How can I check if a specific file exists using a shell command?"}
+{"id": "1f36f524da24", "category": "shell", "task": "List all hidden files in this directory"}
+{"id": "9038f488e3e7", "category": "shell", "task": "How do I recursively count the number of files in this folder?"}
+{"id": "3e23eb8a47e3", "category": "shell", "task": "Show the disk usage of this directory in a tree format"}
+{"id": "592b780ade16", "category": "shell", "task": "What is the current user's home directory?"}
+{"id": "674a20f7866b", "category": "shell", "task": "How can I create a directory and set its permissions to read-only?"}
+{"id": "8d72e4e0cfb5", "category": "shell", "task": "How do I append the current date to a file called log.txt?"}
+{"id": "57c78de8e841", "category": "shell", "task": "Show the last modified time of all files in this folder"}
+{"id": "9f5a377cc96a", "category": "shell", "task": "How can I rename all files ending in .old to .backup?"}
+{"id": "030ffc06a72f", "category": "shell", "task": "How do I delete all empty files in this directory?"}
+{"id": "b1949caf78ec", "category": "shell", "task": "What is the total number of files and directories in this folder?"}
+{"id": "0cf6a62d59c7", "category": "shell", "task": "How can I check if the system is running in 64-bit mode?"}
+{"id": "91ccd2fb1815", "category": "shell", "task": "Find and display all hidden files in the current directory."}
+{"id": "73a26465c582", "category": "shell", "task": "List the top 5 largest files in the current directory."}
+{"id": "d8a846f32601", "category": "shell", "task": "Check if there are any running processes named 'notepad.exe'."}
+{"id": "ae6be5b0070d", "category": "shell", "task": "Rename all files ending with '.old' to '.backup' in this folder."}
+{"id": "35f21215a6ae", "category": "shell", "task": "Create a directory called 'project-files' and set its permissions to read-only."}
+{"id": "5f2ac6b9124b", "category": "shell", "task": "Search for the word 'error' in all text files within this folder."}
+{"id": "b1f0733890cc", "category": "shell", "task": "Display the disk usage of this drive in a tree format."}
+{"id": "d0d4ff6579c0", "category": "shell", "task": "Run a system cleanup to remove temporary files and cache."}
+{"id": "891f1be4e668", "category": "shell", "task": "Find and delete all empty files in the current directory."}
+{"id": "5e04ca5dbf9a", "category": "shell", "task": "Show the last 10 lines of the system log file."}
+{"id": "1aad2dbdd463", "category": "shell", "task": "Count how many files and folders are in this directory."}
+{"id": "516528545696", "category": "shell", "task": "Find the full path of the Python executable currently in use."}
+{"id": "db2945e64863", "category": "shell", "task": "Check the size of the recycle bin and clear it if it's larger than 1GB."}
+{"id": "0184bda858a9", "category": "shell", "task": "Create a symbolic link from 'old-file.txt' to 'new-file.txt'."}
+{"id": "2c90db7a6783", "category": "shell", "task": "What's the current date and time in New York?"}
+{"id": "6db02de70b77", "category": "shell", "task": "Find and replace all instances of 'oldtext' with 'newtext' in files ending with .txt"}
+{"id": "9369bb3c81f7", "category": "shell", "task": "List all files in the current directory that start with 'log_' and end with '.txt'"}
+{"id": "a9d504443a61", "category": "shell", "task": "Create a directory called 'project-setup' and navigate into it"}
+{"id": "92b2c12e948a", "category": "shell", "task": "Run the Python script named 'script.py' in the background"}
+{"id": "ecb93a871726", "category": "shell", "task": "Check if the file 'data.csv' exists and display its size"}
+{"id": "3b4a4c60265e", "category": "shell", "task": "Search the web for 'how to install Python on Windows' and show the first result"}
+{"id": "85b17ddaad7d", "category": "shell", "task": "Display the contents of the 'hosts' file in the system's etc directory"}
+{"id": "e7b0bce701fc", "category": "shell", "task": "Find all files modified in the last 24 hours and list them"}
+{"id": "bd0d935ad627", "category": "shell", "task": "Create a batch file that echoes 'Hello, World!' and runs it"}
+{"id": "c1cb361770ed", "category": "shell", "task": "Run the Python interpreter and import the os module"}
+{"id": "aa20baeff1cc", "category": "shell", "task": "List all environment variables and filter those starting with 'USER'"}
+{"id": "dd68097caabd", "category": "shell", "task": "Create a file named 'test.txt' with the content 'This is a test.'"}
+{"id": "f6f077ce79c0", "category": "shell", "task": "Check the disk space usage of the D: drive and show as a percentage"}
+{"id": "94820a068f93", "category": "shell", "task": "Install the latest version of Python using the Windows Store."}
+{"id": "b6dbcafbfe97", "category": "shell", "task": "Create a folder named 'project-folder' and navigate into it."}
+{"id": "5744380588c7", "category": "shell", "task": "Check the system's uptime and display it in seconds."}
+{"id": "1662477cbee9", "category": "shell", "task": "Run a Python script called 'hello.py' that prints 'Hello, World!'"}
+{"id": "70deabe88e0a", "category": "shell", "task": "List all the files in the current directory with their sizes."}
+{"id": "7be5a0a104ae", "category": "shell", "task": "Find and display the path to the system's temporary directory."}
+{"id": "417daef2c660", "category": "shell", "task": "Create a batch file that echoes 'Good morning!' when run."}
+{"id": "78be2c31dcd8", "category": "shell", "task": "Search for the latest Python documentation on the web and show the link."}
+{"id": "814bf2fe3c56", "category": "shell", "task": "Display the current date and time in the format 'YYYY-MM-DD HH:MM:SS'."}
+{"id": "5d8acad44a6b", "category": "shell", "task": "Create a file named 'sample.txt' and write 'This is a test.' into it."}
+{"id": "1d26f235e12b", "category": "shell", "task": "Check if the machine has a GPU and display the model if it does."}
+{"id": "8a62bbdb792f", "category": "shell", "task": "Run a PowerShell command to get the list of running processes."}
+{"id": "a04d8f183eee", "category": "shell", "task": "Create a Python virtual environment in the current directory."}
+{"id": "8b7e3282d555", "category": "shell", "task": "Find and display the total memory (RAM) installed on this machine."}
+{"id": "bbdf77dffd95", "category": "shell", "task": "List all the directories in the current folder that contain more than 10 files."}
+{"id": "c318d0765d4c", "category": "shell", "task": "What is the MD5 hash of the file 'data.txt'?"}
+{"id": "8d94be705e96", "category": "shell", "task": "How can I recursively find all .log files in this directory?"}
+{"id": "78e6f4d1fe96", "category": "shell", "task": "Show the top 5 largest files in the current directory."}
+{"id": "742a274f7500", "category": "shell", "task": "How do I check if the file 'config.json' exists and is readable?"}
+{"id": "bde62eeff80d", "category": "shell", "task": "Rename all .txt files in this folder to .md format."}
+{"id": "f4e65a771c74", "category": "shell", "task": "What is the total size of all files in this directory in gigabytes?"}
+{"id": "a767e1c3c389", "category": "shell", "task": "How do I delete all temporary files (like .tmp and .log) in this folder?"}
+{"id": "82d5327a3c26", "category": "shell", "task": "Can you list all hidden files and folders in this directory?"}
+{"id": "77359e63bf66", "category": "shell", "task": "How do I check the disk usage of each subdirectory in this folder?"}
+{"id": "249347cd790c", "category": "shell", "task": "What is the current working directory of this shell session?"}
+{"id": "e0d7f8d8de2d", "category": "shell", "task": "How can I create a directory named 'backup' and set its permissions to read-only?"}
+{"id": "ca0ec56fbbfb", "category": "shell", "task": "How do I check the disk usage of the current directory and its subdirectories?"}
+{"id": "5af1e80b7ad1", "category": "shell", "task": "Show the last modified date and time for all files in this directory."}
+{"id": "42cf8428112c", "category": "web", "task": "What's the current weather in New York? Search for the forecast."}
+{"id": "580dd766da2e", "category": "web", "task": "Find the latest version of TensorFlow for Windows and provide the install command."}
+{"id": "af89eb29a5eb", "category": "web", "task": "Search for a Python script that converts CSV to JSON and show me the code."}
+{"id": "b2296bbf4fd6", "category": "web", "task": "Tell me about the differences between Python 3.10 and 3.11 in one paragraph."}
+{"id": "e12226c90f92", "category": "web", "task": "What's the fastest way to install Node.js on Windows? Give me step-by-step instructions."}
+{"id": "d172e49166d4", "category": "web", "task": "Look up the official documentation for the Windows Subsystem for Linux (WSL)."}
+{"id": "fd2e3d253186", "category": "web", "task": "Find a list of the top 10 Python libraries for data analysis and explain one."}
+{"id": "70c83fa9f7ec", "category": "web", "task": "Search for a PowerShell script that deletes temporary files and show me the code."}
+{"id": "781ea951af31", "category": "web", "task": "What are the system requirements for running Docker on Windows? List them."}
+{"id": "5d309394cb41", "category": "web", "task": "Find the latest release notes for Visual Studio Code and summarize them."}
+{"id": "0ad26d932ec3", "category": "web", "task": "Search for the best free IDE for Python development on Windows. Explain why."}
+{"id": "f5a66bd1077f", "category": "web", "task": "Look up the command to check the installed Python version in PowerShell."}
+{"id": "7526f1b9965c", "category": "web", "task": "What are the key features of the Windows 11 terminal? Give a brief overview."}
+{"id": "bd864d1b65b7", "category": "web", "task": "Find a tutorial on how to set up a local development environment for Flask on Windows."}
+{"id": "895df970418c", "category": "web", "task": "Search for the current version of TensorFlow and provide the download link for Windows."}
+{"id": "323deab16f27", "category": "web", "task": "What is the difference between PyTorch and TensorFlow? Summarize in one paragraph."}
+{"id": "5ce0b0a3861b", "category": "web", "task": "Find the latest Python package for web scraping and list its main features."}
+{"id": "915087126442", "category": "web", "task": "Search for a Python script that converts CSV to JSON and provide the code."}
+{"id": "17ddd5c6b1b8", "category": "web", "task": "Look up the official documentation for Flask and give me the link."}
+{"id": "a9c51c0b02b6", "category": "web", "task": "Find the best free online Python compiler for Windows and explain why it's useful."}
+{"id": "d08cb03386de", "category": "web", "task": "Search for a way to install MongoDB on Windows using Chocolatey."}
+{"id": "66e3c57fe0da", "category": "web", "task": "What is the fastest way to install Node.js on Windows? Provide step-by-step instructions."}
+{"id": "5e77ade187bf", "category": "web", "task": "Find a Python library that can fetch weather data and list its dependencies."}
+{"id": "9e6628dd6b4f", "category": "web", "task": "Search for the latest release of Git for Windows and provide the download link."}
+{"id": "092968cca176", "category": "web", "task": "Look up how to enable Hyper-V on Windows 10 and list the commands."}
+{"id": "48f88bfd744d", "category": "web", "task": "Find a Python script that checks for updates on installed packages."}
+{"id": "89e821a61eb9", "category": "web", "task": "Search for the best Python IDE for Windows with built-in terminal support."}
+{"id": "359f1398e9fa", "category": "web", "task": "What is the difference between pip and conda? Give a brief explanation."}
+{"id": "f118095c6f98", "category": "web", "task": "What's the current exchange rate for USD to INR?"}
+{"id": "c87f92dfca1f", "category": "web", "task": "Search for the best free antivirus software for Windows 10."}
+{"id": "9a2cf72750c0", "category": "web", "task": "Find the latest release date of TensorFlow for Windows."}
+{"id": "0c254838646d", "category": "web", "task": "Look up how to enable hyper-threading on an Intel CPU via BIOS."}
+{"id": "cc6b2970b02c", "category": "web", "task": "What is the difference between Python 3.10 and Python 3.11?"}
+{"id": "a7164de2afa0", "category": "web", "task": "Search for a Python script to convert CSV to JSON."}
+{"id": "b00b4ce179bc", "category": "web", "task": "Find the top 5 GitHub repositories for machine learning in 2024."}
+{"id": "8395be0c54e8", "category": "web", "task": "What is the fastest way to install Node.js on Windows?"}
+{"id": "b49ecc99184e", "category": "web", "task": "Look up the official documentation for the Windows Task Scheduler."}
+{"id": "cec45b91fb35", "category": "web", "task": "How to create a self-signed SSL certificate in PowerShell?"}
+{"id": "938caacb5308", "category": "web", "task": "Search for the best Python IDE for Windows with Git integration."}
+{"id": "ca6db5d2c925", "category": "web", "task": "What are the system requirements for running Docker on Windows?"}
+{"id": "cb82325d832e", "category": "web", "task": "Find a tutorial on how to setup a local WordPress site on Windows."}
+{"id": "68624ee38b3d", "category": "web", "task": "Search for the latest security patch for Windows 11 version 22H2."}
+{"id": "0104ca8c11b9", "category": "web", "task": "What is the current exchange rate for USD to INR?"}
+{"id": "ae4e638bd85e", "category": "web", "task": "Find the top 5 most popular Python libraries for data science."}
+{"id": "b190a1e47314", "category": "web", "task": "Search for the best free online Python course for beginners."}
+{"id": "7ae3849e1d1a", "category": "web", "task": "Look up the latest security patches for Windows 11."}
+{"id": "6050884eac6f", "category": "web", "task": "What are the system requirements for running TensorFlow on Windows?"}
+{"id": "1435054302bf", "category": "web", "task": "Find the official documentation link for Django 4.2."}
+{"id": "048305449cb0", "category": "web", "task": "Search for the best way to install Node.js on Windows 10."}
+{"id": "9788ef7105e5", "category": "web", "task": "Tell me about the history of the Linux kernel in simple terms."}
+{"id": "ddc9df26fa5f", "category": "web", "task": "What is the difference between a list and a tuple in Python?"}
+{"id": "c1ce2024fff5", "category": "web", "task": "Search for the fastest way to convert a CSV file to JSON in Python."}
+{"id": "555392c6304e", "category": "web", "task": "Find the latest version of the Windows Terminal and its features."}
+{"id": "b2cb3eff0938", "category": "web", "task": "Look up the steps to enable hyperthreading on a Windows laptop."}
+{"id": "754e99b851c7", "category": "web", "task": "What are the key features of the Python 'async' module?"}
+{"id": "daaba5899a7c", "category": "web", "task": "Search for the best practices for securing a Windows development environment."}
+{"id": "7338be257195", "category": "web", "task": "What's the difference between HTTP and HTTPS? Explain briefly."}
+{"id": "32808d620d12", "category": "web", "task": "Search for the best free Python IDE for Windows and list top 3."}
+{"id": "4566551817fa", "category": "web", "task": "Find the current exchange rate between USD and EUR."}
+{"id": "2809a84677dc", "category": "web", "task": "Look up the latest vulnerabilities in Windows 11 and summarize."}
+{"id": "1b5951fddd57", "category": "web", "task": "What is the correct way to install Node.js on Windows? Provide step-by-step."}
+{"id": "cde41fdbdd32", "category": "web", "task": "Search for the Python package that allows running shell commands in scripts."}
+{"id": "17618f4cf34a", "category": "web", "task": "Find the latest version of the Linux kernel and its release date."}
+{"id": "6564b347f4cb", "category": "web", "task": "What are the common causes of a blue screen of death (BSOD) in Windows?"}
+{"id": "d819fcc35ed4", "category": "web", "task": "Search for the fastest way to transfer large files between Windows computers."}
+{"id": "8a349e28f0b8", "category": "web", "task": "Tell me what the Google homepage looks like on mobile devices."}
+{"id": "f770f93df1e5", "category": "web", "task": "Find the official documentation for the latest version of TensorFlow."}
+{"id": "dda68f8e8e5a", "category": "web", "task": "What is the purpose of the Windows Registry and how can I back it up?"}
+{"id": "2611382cc30e", "category": "web", "task": "Search for the best way to compress a folder in Windows using PowerShell."}
+{"id": "5b585bbb8b79", "category": "web", "task": "What are the top 5 security practices for a Windows laptop in 2025?"}
+{"id": "778de5ab37ab", "category": "web", "task": "What are the top 5 Python libraries for data visualization and what do they do?"}
+{"id": "d9021d7c48b6", "category": "web", "task": "Find the latest security update for Windows 11 and explain its importance."}
+{"id": "d61eca0e582e", "category": "web", "task": "Search for the best practices to secure a Python web application."}
+{"id": "7890ddc62c25", "category": "web", "task": "Look up the current exchange rate between USD and EUR and show the result."}
+{"id": "f1c15065c4bc", "category": "web", "task": "Tell me the steps to install Docker on Windows using PowerShell."}
+{"id": "4122c3632e30", "category": "web", "task": "What is the difference between a list and a tuple in Python? Explain with examples."}
+{"id": "a624a7c3a6f2", "category": "web", "task": "Find the official documentation link for the latest version of Pandas."}
+{"id": "fcf2eea5788c", "category": "web", "task": "Search for the most efficient way to convert a CSV file to a JSON file in Python."}
+{"id": "b36e144d63fb", "category": "web", "task": "What are the system requirements for running TensorFlow 2.12 on Windows?"}
+{"id": "84648187aefb", "category": "web", "task": "Look up the current world population and how it's projected to grow in the next 20 years."}
+{"id": "9b0ef9c9e144", "category": "web", "task": "Find the top 3 free code editors for Windows and their main features."}
+{"id": "2bc5c3eec584", "category": "web", "task": "Search for the best way to debug a Python script using VS Code on Windows."}
+{"id": "92c726d83721", "category": "web", "task": "What are the common issues when installing Python packages on Windows and how to fix them?"}
+{"id": "7306021dfe8a", "category": "web", "task": "Find the latest release notes for the Windows Subsystem for Linux (WSL)."}
+{"id": "43658cdfdf5c", "category": "web", "task": "What is the difference between HTTP and HTTPS? Summarize in one paragraph."}
+{"id": "3adefd0ef813", "category": "web", "task": "Find the latest Windows 11 update version and its release date."}
+{"id": "28012039c5d0", "category": "web", "task": "Look up the current exchange rate between USD and EUR."}
+{"id": "1c0f3b9af142", "category": "web", "task": "What are the top 5 most used Python libraries for data analysis?"}
+{"id": "df70c72acede", "category": "web", "task": "Search for the official documentation link for the latest Python version."}
+{"id": "d941b4101bad", "category": "web", "task": "Find a tutorial on how to install Docker on Windows 10."}
+{"id": "08cbafc0e6e0", "category": "web", "task": "What is the purpose of the Windows Registry and how can I edit it safely?"}
+{"id": "298f3e52a88c", "category": "web", "task": "Look up the steps to enable Hyper-V on Windows 11."}
+{"id": "d17aaf98bde9", "category": "web", "task": "Search for a free online Python compiler that works on Windows."}
+{"id": "9a20627fc633", "category": "web", "task": "What are the system requirements for running VS Code on Windows?"}
+{"id": "e04e82581460", "category": "web", "task": "Find a guide to installing Node.js on Windows using the official installer."}
+{"id": "6be5f0420ad0", "category": "web", "task": "Search for the latest release of TensorFlow and its download link."}
+{"id": "9fea33a4ee66", "category": "web", "task": "Look up the command to check the current Windows version and build number."}
+{"id": "b536c12cadaa", "category": "chat", "task": "How can I efficiently search for a specific string in all files of a folder using PowerShell?"}
+{"id": "bd9466f6403c", "category": "chat", "task": "Explain the difference between HTTP GET and POST requests in simple terms."}
+{"id": "c1b63e5afc82", "category": "chat", "task": "Write a Python script that reads a CSV file and outputs the average of a specific column."}
+{"id": "f57065d38e97", "category": "chat", "task": "What are the best practices for version control when working on a solo project?"}
+{"id": "07a8d805c50f", "category": "chat", "task": "How do I install and configure a local development server for a Flask app?"}
+{"id": "8c76bd863ba7", "category": "chat", "task": "Can you explain the concept of closures in Python with an example?"}
+{"id": "b9f498c0ecd0", "category": "chat", "task": "How do I check the disk space usage on my Windows laptop using PowerShell?"}
+{"id": "088b7afe1af8", "category": "chat", "task": "What are the key differences between Python 2 and Python 3?"}
+{"id": "b4b8ace07c58", "category": "chat", "task": "How can I run a Python script from the command line in Windows?"}
+{"id": "efa5240e2a2c", "category": "chat", "task": "What is the purpose of a virtual environment in Python and how do I create one?"}
+{"id": "8b2598b2aa4c", "category": "chat", "task": "Explain the difference between shallow copy and deep copy in Python."}
+{"id": "5f40da9d6d30", "category": "chat", "task": "How do I search for a web term and save the top 5 results in a text file?"}
+{"id": "01d402d9a05c", "category": "chat", "task": "What are some common Python exceptions and how to handle them?"}
+{"id": "2922255dd874", "category": "chat", "task": "How can I edit a file in Notepad++ using PowerShell?"}
+{"id": "76400cc75f73", "category": "chat", "task": "What is the most efficient way to concatenate strings in Python?"}
+{"id": "2b18bb746051", "category": "chat", "task": "What's the best way to structure a Python project for scalability?"}
+{"id": "1c4da19a4c2f", "category": "chat", "task": "How do I convert a CSV file into a SQLite database using Python?"}
+{"id": "8124cf9dadf7", "category": "chat", "task": "Explain how HTTP verbs like GET and POST work in simple terms."}
+{"id": "017e475e9295", "category": "chat", "task": "Can you help me debug this Python script that's not reading the file correctly?"}
+{"id": "f53152e025d7", "category": "chat", "task": "What are the top 5 Python libraries for data visualization?"}
+{"id": "51c10a5b6c56", "category": "chat", "task": "How do I create a simple web server in Python using Flask?"}
+{"id": "50e9ec33fc3a", "category": "chat", "task": "What's the difference between a mutex and a semaphore in concurrency?"}
+{"id": "d1dd49328802", "category": "chat", "task": "How can I search the web for the latest Python release notes?"}
+{"id": "3e53194f52d8", "category": "chat", "task": "Write a PowerShell script to list all running processes and their memory usage."}
+{"id": "da8aab630009", "category": "chat", "task": "How do I make a Python script executable on Windows?"}
+{"id": "fa1f6a1fefa5", "category": "chat", "task": "What's the fastest way to sort a list in Python?"}
+{"id": "590bb782f340", "category": "chat", "task": "Can you explain the concept of closures in JavaScript?"}
+{"id": "77dc74f83ef9", "category": "chat", "task": "How do I read and write JSON files in Python?"}
+{"id": "29784133719f", "category": "chat", "task": "How can I efficiently convert a JSON file into a Python dictionary?"}
+{"id": "25420fbebba4", "category": "chat", "task": "Can you explain how Python's garbage collection works?"}
+{"id": "457e9a001164", "category": "chat", "task": "How do I install and configure Postman on Windows?"}
+{"id": "b94866839d95", "category": "chat", "task": "What are the best practices for writing clean Python code?"}
+{"id": "24b5f6807ecc", "category": "chat", "task": "How do I search for a specific string in all files of a folder using PowerShell?"}
+{"id": "089d3d6c39bc", "category": "chat", "task": "What are the differences between HTTP and HTTPS protocols?"}
+{"id": "eb4ba73f7a48", "category": "chat", "task": "How can I create a simple HTTP server in Python for local testing?"}
+{"id": "1c73cc3bf0e7", "category": "chat", "task": "How do I use the 'grep' command in Windows PowerShell?"}
+{"id": "94e325c08f9c", "category": "chat", "task": "How do I create a virtual environment in Python 3.10?"}
+{"id": "2d071d478976", "category": "chat", "task": "Can you help me debug this Python script that's not running as expected?"}
+{"id": "ba520e64ebe5", "category": "chat", "task": "What are the advantages of using Git over manual version control?"}
+{"id": "872b2f4f16d9", "category": "chat", "task": "How do I check the disk usage of a folder in PowerShell?"}
+{"id": "036bbf0482b6", "category": "chat", "task": "How can I automate file renaming in a folder using Python?"}
+{"id": "494fab445b44", "category": "chat", "task": "How do I convert a Python script into an executable for Windows?"}
+{"id": "a1f86fdd9b04", "category": "chat", "task": "Explain the difference between HTTP and HTTPS in simple terms."}
+{"id": "29f42a146efd", "category": "chat", "task": "Can you help me debug this Python error: 'NameError: name 'x' is not defined'?"}
+{"id": "5599752f6df7", "category": "chat", "task": "What are the best practices for writing clean and maintainable Python code?"}
+{"id": "1172bca86ea5", "category": "chat", "task": "How can I use PowerShell to check the disk usage of all drives on my system?"}
+{"id": "ef4b6057cd2b", "category": "chat", "task": "What is the purpose of the __init__ method in Python classes?"}
+{"id": "5c5bba8619d2", "category": "chat", "task": "Can you show me how to create a basic web scraper using Python?"}
+{"id": "78fae166e8f7", "category": "chat", "task": "How do I set up a virtual environment in Python on Windows?"}
+{"id": "e9147e8502ce", "category": "chat", "task": "What are some common Python libraries for data analysis and visualization?"}
+{"id": "d87746c37321", "category": "chat", "task": "How can I search for a specific file in my system using PowerShell?"}
+{"id": "659c71070115", "category": "chat", "task": "Can you explain how Git works with a simple analogy?"}
+{"id": "e53efee87806", "category": "chat", "task": "How do I install Python packages using pip on Windows?"}
+{"id": "6d22b2ddb862", "category": "chat", "task": "What are some useful keyboard shortcuts in Windows for developers?"}
+{"id": "f1787e76ac92", "category": "chat", "task": "How do I check if a Python script is using too much memory?"}
+{"id": "9b37022e9a0b", "category": "chat", "task": "What's the best way to debug a PowerShell script that's not working?"}
+{"id": "0d97725ca985", "category": "chat", "task": "Can you help me find a Python library for machine learning?"}
+{"id": "b93fbc97de34", "category": "chat", "task": "How do I install Python on Windows without using the official installer?"}
+{"id": "da31e7ad1843", "category": "chat", "task": "What are the top 5 Python data structures and when to use them?"}
+{"id": "45169f8c5719", "category": "chat", "task": "How do I search for files in a folder using PowerShell?"}
+{"id": "678067fd7ddd", "category": "chat", "task": "Can you explain recursion with an example?"}
+{"id": "a11a1f8d4305", "category": "chat", "task": "How do I create a virtual environment in Python on Windows?"}
+{"id": "f96879fd492e", "category": "chat", "task": "What are the main differences between Python 2 and Python 3?"}
+{"id": "6b2f29bc6e7b", "category": "chat", "task": "How can I check the version of Python installed on my system?"}
+{"id": "2784f4bea322", "category": "chat", "task": "How can I efficiently debug a Python script that's not working as expected?"}
+{"id": "acfe50b0cfc9", "category": "chat", "task": "Can you explain the difference between a list and a tuple in Python?"}
+{"id": "0da212517cc7", "category": "chat", "task": "What are some common pitfalls for beginners learning Python?"}
+{"id": "36b1ce9694ea", "category": "chat", "task": "How do I create a simple web scraper using Python?"}
+{"id": "81dfb19b671e", "category": "chat", "task": "Can you help me understand how inheritance works in object-oriented programming?"}
+{"id": "33cec2faa403", "category": "chat", "task": "I need to write a script that renames all files in a folder by adding a prefix. How can I do that?"}
+{"id": "83b4b77044cb", "category": "chat", "task": "What's the best way to organize my Python projects for scalability?"}
+{"id": "9a0a061016e5", "category": "chat", "task": "How can I use PowerShell to check the system resources like CPU and memory usage?"}
+{"id": "182ff37b5cb2", "category": "chat", "task": "I'm trying to learn about APIs. Can you give a simple example of how to make a GET request in Python?"}
+{"id": "0f0c960abcd0", "category": "chat", "task": "How do I convert a CSV file into a JSON format using Python?"}
+{"id": "81775f180457", "category": "chat", "task": "What are some good practices for writing clean and maintainable code?"}
+{"id": "14646a95d769", "category": "chat", "task": "Can you explain what a lambda function is and when to use it?"}
+{"id": "dc51f6510860", "category": "chat", "task": "How can I search for text in multiple files using PowerShell?"}
+{"id": "4db2f5ef6f21", "category": "chat", "task": "What's the difference between a shallow copy and a deep copy in Python?"}
+{"id": "aa51afab22d8", "category": "chat", "task": "Can you explain how to install Python on Windows without using the official installer?"}
+{"id": "9aacc842397c", "category": "chat", "task": "How do I convert a .txt file into a CSV file using Python?"}
+{"id": "84c56a3fbebf", "category": "chat", "task": "What are some common Python libraries for data analysis on Windows?"}
+{"id": "dad28d561230", "category": "chat", "task": "How can I check if a specific port is in use using PowerShell?"}
+{"id": "cdfcf33cd230", "category": "chat", "task": "What is the difference between pip and conda for package management?"}
+{"id": "6ce9cbf8a8de", "category": "chat", "task": "How do I run a Python script from the command line in Windows?"}
+{"id": "29b3772fac64", "category": "chat", "task": "Can you help me find a Python package that can search for files recursively?"}
+{"id": "8291adf31cad", "category": "chat", "task": "What are some best practices for writing efficient PowerShell scripts?"}
+{"id": "59af591fa728", "category": "chat", "task": "How can I search for a specific string in all files within a folder using PowerShell?"}
+{"id": "1c8f3dbeb044", "category": "chat", "task": "What are some tools or methods to debug a Python script on Windows?"}
+{"id": "b82e0dcbfc25", "category": "chat", "task": "How do I create a batch file that runs a Python script with arguments?"}
+{"id": "410317617c8c", "category": "chat", "task": "What are some common issues when running Python scripts on Windows and how to fix them?"}
+{"id": "d25843f5b1fa", "category": "chat", "task": "How can I make a Python script run automatically at startup on Windows?"}
