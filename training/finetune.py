@@ -146,6 +146,7 @@ def main():
           f"-> {steps_per_epoch} optimizer steps per epoch")
 
     start = time.time()
+    stopped = {"early": False}
 
     class TimeLimit(TrainerCallback):
         """Save and stop cleanly before the notebook session is killed."""
@@ -155,6 +156,7 @@ def main():
                 print(f"time limit of {args.max_hours}h reached at step {state.global_step}; saving")
                 control.should_save = True
                 control.should_training_stop = True
+                stopped["early"] = True
             return control
 
     bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
@@ -202,6 +204,9 @@ def main():
     hist = [h for h in trainer.state.log_history if "loss" in h or "eval_loss" in h]
     with open(out / "train_log.json", "w") as f:
         json.dump(hist, f, indent=1)
+    with open(out / "status.json", "w") as f:
+        json.dump({"completed": not stopped["early"], "steps": trainer.state.global_step,
+                   "hours": (time.time() - start) / 3600}, f)
     print(f"done in {(time.time() - start) / 3600:.2f}h; adapter saved to {lora_dir}")
 
 
