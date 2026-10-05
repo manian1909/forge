@@ -22,8 +22,10 @@ class LLMClient:
         self.max_tokens = max_tokens
         # llama-server reads chat_template_kwargs; disabling Qwen3's thinking
         # mode cuts latency a lot for everyday requests
+        # (llama-server reads chat_template_kwargs, Ollama reads reasoning_effort)
         self.extra_body = extra_body if extra_body is not None else {
-            "chat_template_kwargs": {"enable_thinking": False}
+            "chat_template_kwargs": {"enable_thinking": False},
+            "reasoning_effort": "none",
         }
         self.http = httpx.Client(timeout=httpx.Timeout(600.0, connect=5.0))
 
