@@ -1,0 +1,76 @@
+{
+  "python_compute": [
+    "What is the 50th Fibonacci number?",
+    "How many days are there between 15 August 1947 and today?",
+    "Compute the compound interest on 2,50,000 rupees at 7.5% per year for 8 years, compounded quarterly.",
+    "Find all prime numbers between 1000 and 1100.",
+    "What is the standard deviation of 12, 15, 22, 9, 31, 18, 27?",
+    "Convert 98.6 Fahrenheit to Celsius and Kelvin.",
+    "Solve the quadratic equation 3x^2 - 7x + 2 = 0.",
+    "Generate a random strong password of 16 characters with letters, digits and symbols.",
+    "What day of the week was 26 January 1950?",
+    "How many times does the digit 7 appear in all numbers from 1 to 10000?",
+    "If I invest 5000 every month in a SIP with 12% annual return, how much will I have after 15 years?",
+    "Count the vowels in the sentence 'The quick brown fox jumps over the lazy dog'."
+  ],
+  "coding": [
+    "Write a Python function that checks whether a string is a palindrome, ignoring spaces and case, and test it.",
+    "Implement binary search in Python and test it on a few sorted lists, including edge cases.",
+    "Write a function to merge two sorted lists into one sorted list without using sort(), and test it.",
+    "Write a Python class for a stack with push, pop, peek and is_empty, then demonstrate it.",
+    "Write a function that returns the longest common prefix of a list of strings. Test it.",
+    "Implement an LRU cache class in Python with get and put in O(1) and show it working.",
+    "This code has a bug, fix it and show it works: def avg(xs): return sum(xs) / len(xs) - it crashes on an empty list.",
+    "Fix this function so it returns the correct factorial: def fact(n):\n    r = 0\n    for i in range(1, n):\n        r *= i\n    return r",
+    "Write a Python script that reads a CSV string of name,marks and prints the topper and the class average.",
+    "Write a function that flattens an arbitrarily nested list in Python. Test it on [1,[2,[3,[4]],5]].",
+    "Write a Python function to validate an Indian mobile number (10 digits starting with 6-9) using regex, with tests.",
+    "Explain what a Python decorator is and write a small timing decorator, then run it on a slow function.",
+    "Write a two-sum solution in O(n) and test it.",
+    "Write a matrix multiplication function without numpy and verify it against numpy."
+  ],
+  "files": [
+    "Create a file notes/todo.md with a checklist of 5 study tasks for a DSA exam.",
+    "Create a small Python project folder called calculator with main.py and a README.md, then list the folder.",
+    "Write a file data.csv with 10 rows of sample student data (name, age, marks), then read it back and tell me the average marks.",
+    "Create hello.py that prints a greeting, then run it.",
+    "Make a JSON config file config.json with keys app_name, version, debug, then read it and confirm the contents.",
+    "Create a file poem.txt with a short poem about rain, then count its lines and words.",
+    "List the files in the current folder and tell me which is the largest.",
+    "Write a Python script organize.py that groups files in a folder by extension into subfolders, create a few dummy files, and run it."
+  ],
+  "shell": [
+    "What version of Python is installed?",
+    "How much free disk space is there on the C: drive?",
+    "Show the 5 processes using the most memory right now.",
+    "What is the current date and time on this computer?",
+    "Initialize a git repository in a folder called demo-repo, add a README and make a first commit.",
+    "How many CPU cores does this machine have?",
+    "Show my computer's IP addresses.",
+    "Which pip packages are installed that start with 'n'?",
+    "Show the environment variable PATH entries one per line.",
+    "Create three empty files a.txt, b.txt, c.txt using a shell command and list them."
+  ],
+  "web": [
+    "Search the web for the latest stable Python version and tell me what it is.",
+    "What is llama.cpp? Search and give me a two-line summary.",
+    "Fetch https://example.com and tell me what the page says.",
+    "Search for the official PyTorch installation command for CUDA on Windows.",
+    "Find who won the most recent Cricket World Cup.",
+    "Look up what QLoRA is and summarize it in three bullet points."
+  ],
+  "chat": [
+    "Hi! Who are you?",
+    "Explain the difference between a process and a thread.",
+    "What is the time complexity of quicksort and why?",
+    "Give me 3 tips to prepare for a coding interview.",
+    "Explain recursion to a beginner with a simple example.",
+    "What's the difference between a list and a tuple in Python?",
+    "Can you explain what a transformer model is in simple words?",
+    "I'm feeling stuck on my project, any advice?",
+    "Write a short professional email asking my professor for a deadline extension.",
+    "What does git rebase do compared to git merge?",
+    "Thanks, that was helpful!",
+    "Explain Big-O notation in two sentences."
+  ]
+}
