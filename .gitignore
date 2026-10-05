@@ -36,3 +36,8 @@ models/
 data/out/train.jsonl
 data/out/val.jsonl
 data/out/*.log
+
+# Training outputs
+outputs/
+exports/
+llama.cpp/
