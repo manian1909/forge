@@ -22,3 +22,12 @@ logs/
 CLAUDE.md
 CLAUDE.local.md
 **/CLAUDE.md
+
+# Data generation scratch
+gen_sandbox/
+data/out/rejected.jsonl
+
+# Model files
+models/
+*.gguf
+*.safetensors
