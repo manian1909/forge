@@ -43,6 +43,7 @@ class LLMClient:
             "model": self.model,
             "messages": messages,
             "stream": True,
+            "stream_options": {"include_usage": True},
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
             **self.extra_body,
@@ -81,8 +82,6 @@ class LLMClient:
                     fn = tc.get("function") or {}
                     slot["name"] += fn.get("name") or ""
                     slot["arguments"] += fn.get("arguments") or ""
-                    if first_token_at is None:
-                        first_token_at = time.time()
 
         text = THINK_RE.sub("", "".join(content)).strip()
         message = {"role": "assistant", "content": text}
@@ -97,7 +96,8 @@ class LLMClient:
             ]
         elapsed = time.time() - start
         gen_tokens = (usage or {}).get("completion_tokens", n_chunks)
-        gen_time = elapsed - ((first_token_at or start) - start)
+        # some servers send a tool call in one final chunk, so fall back to wall time
+        gen_time = elapsed - (first_token_at - start) if first_token_at and n_chunks > 1 else elapsed
         stats = {
             "time_to_first_token": (first_token_at or time.time()) - start,
             "tokens": gen_tokens,
