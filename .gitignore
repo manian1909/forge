@@ -41,3 +41,6 @@ data/out/*.log
 outputs/
 exports/
 llama.cpp/
+
+# Local binaries
+tools/
