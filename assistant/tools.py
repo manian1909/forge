@@ -100,6 +100,12 @@ class Toolbox:
         p = Path(os.path.expanduser(path or "."))
         return p if p.is_absolute() else self.workspace / p
 
+    def _display(self, path):
+        try:
+            return str(path.resolve().relative_to(self.workspace))
+        except ValueError:
+            return str(path)
+
     def call(self, name, args):
         """Run a tool and always return a string (errors are reported, not raised)."""
         fn = getattr(self, name, None)
@@ -150,7 +156,7 @@ class Toolbox:
         target = self._resolve(path)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
-        return f"Wrote {len(content)} chars to {target}"
+        return f"Wrote {len(content)} chars to {self._display(target)}"
 
     def list_dir(self, path="."):
         target = self._resolve(path)
