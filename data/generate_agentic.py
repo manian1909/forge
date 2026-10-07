@@ -174,6 +174,8 @@ def run(args):
     print(f"{len(done)} already processed, running {len(todo)}")
 
     llm = teacher(args)
+    if not llm.health():
+        sys.exit(f"can't reach the teacher model at {args.url}; start Ollama (or wait for its update) and retry")
     kept = 0
     for i, t in enumerate(todo, 1):
         shutil.rmtree(SANDBOX, ignore_errors=True)
@@ -183,6 +185,10 @@ def run(args):
             agent.run(t["task"])
             reason = check(agent.messages, t["category"])
         except Exception as e:  # noqa: BLE001
+            if not llm.health():
+                # the teacher went away (Ollama closed or updating): stop without
+                # recording anything so these tasks are not lost
+                sys.exit(f"lost connection to the teacher at {args.url}; restart Ollama and run again")
             reason = f"exception: {e}"
         row = {"id": t["id"], "category": t["category"], "messages": agent.messages, "tools": TOOL_SCHEMAS}
         if reason is None:
@@ -197,7 +203,8 @@ def run(args):
 
 
 # -------------------------------------------------------------------- recover
-NETWORK_ERRORS = ("DNSError", "ConnectError", "TimeoutException", "getaddrinfo", "ConnectionError")
+NETWORK_ERRORS = ("DNSError", "ConnectError", "TimeoutException", "getaddrinfo", "ConnectionError",
+                  "10061", "actively refused", "RemoteProtocolError")
 
 
 def recover(args):
@@ -210,7 +217,8 @@ def recover(args):
         if r["id"] in kept:
             continue
         tool_text = " ".join(m["content"] for m in r["messages"] if m["role"] == "tool")
-        if any(e in tool_text for e in NETWORK_ERRORS):
+        teacher_down = r["reason"].startswith("exception") and any(e in r["reason"] for e in NETWORK_ERRORS)
+        if teacher_down or any(e in tool_text for e in NETWORK_ERRORS):
             retry += 1  # dropped: will be generated again
             continue
         reason = check(r["messages"], r["category"])
