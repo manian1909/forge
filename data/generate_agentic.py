@@ -9,6 +9,8 @@ conversations that pass the quality filters are kept.
     python data/generate_agentic.py expand --per-category 120
     # 2. run them (resumable: re-run the same command to continue)
     python data/generate_agentic.py run --limit 800
+    # 3. after network hiccups: rescue rejects and retry failed web searches
+    python data/generate_agentic.py recover
 
 Output: data/out/agentic.jsonl, one {"messages", "tools", "category"} per line.
 """
@@ -62,7 +64,9 @@ def teacher(args):
     # Ollama honours reasoning_effort=none to skip Qwen3's thinking; llama-server
     # uses chat_template_kwargs. Sending both is harmless.
     extra = {"reasoning_effort": "none", "chat_template_kwargs": {"enable_thinking": False}}
-    return LLMClient(args.url, args.model, temperature=args.temperature, extra_body=extra)
+    # a cap on reply length stops the rare repetition loop from running for half an hour
+    return LLMClient(args.url, args.model, temperature=args.temperature, max_tokens=1200,
+                     extra_body=extra)
 
 
 def task_id(text):
@@ -139,7 +143,9 @@ def check(messages, category):
     if category == "chat" and calls:
         return "used tools for a chat task"
     if category != "chat" and not calls:
-        return "did not use tools"
+        # writing code without running it is still a good answer to a coding request
+        if not (category == "coding" and "```" in final["content"]):
+            return "did not use tools"
     for c in calls:
         try:
             json.loads(c["function"]["arguments"])
@@ -190,9 +196,38 @@ def run(args):
     print(f"kept {kept}/{len(todo)} -> {RESULTS}")
 
 
+# -------------------------------------------------------------------- recover
+NETWORK_ERRORS = ("DNSError", "ConnectError", "TimeoutException", "getaddrinfo", "ConnectionError")
+
+
+def recover(args):
+    """Re-check rejected conversations with the current filters (no teacher
+    needed) and forget network failures so the next ``run`` retries them."""
+    rejected = read_jsonl(REJECTS)
+    kept = {r["id"] for r in read_jsonl(RESULTS)}
+    still, recovered, retry = [], 0, 0
+    for r in rejected:
+        if r["id"] in kept:
+            continue
+        tool_text = " ".join(m["content"] for m in r["messages"] if m["role"] == "tool")
+        if any(e in tool_text for e in NETWORK_ERRORS):
+            retry += 1  # dropped: will be generated again
+            continue
+        reason = check(r["messages"], r["category"])
+        if reason is None:
+            append_jsonl(RESULTS, {k: r[k] for k in ("id", "category", "messages", "tools")})
+            recovered += 1
+        else:
+            still.append({**r, "reason": reason})
+    with open(REJECTS, "w", encoding="utf-8") as f:
+        for r in still:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    print(f"recovered {recovered}, queued {retry} network failures for retry, {len(still)} stay rejected")
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    p.add_argument("step", choices=["expand", "run"])
+    p.add_argument("step", choices=["expand", "run", "recover"])
     p.add_argument("--url", default="http://127.0.0.1:11434/v1")
     p.add_argument("--model", default="qwen3:8b")
     p.add_argument("--temperature", type=float, default=0.7)
@@ -202,7 +237,7 @@ def main():
     args = p.parse_args()
     if sys.platform == "win32":
         sys.stdout.reconfigure(encoding="utf-8")
-    expand(args) if args.step == "expand" else run(args)
+    {"expand": expand, "run": run, "recover": recover}[args.step](args)
 
 
 if __name__ == "__main__":
