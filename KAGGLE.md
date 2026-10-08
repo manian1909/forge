@@ -71,8 +71,8 @@ Kaggle's servers for up to 12 hours.
 
 | Option | What it does |
 |---|---|
-| `--preset qwen3-8b` | 8B model. Training takes about 3–5 h. Recommended. |
-| `--preset qwen3-14b` | 14B model. About 7–10 h, and may need a second session (see step 7). |
+| `--preset qwen3-8b` | 8B model. About 8 h of training with the default data mix (`--scale 0.6`). Recommended. |
+| `--preset qwen3-14b` | 14B model. Uses a smaller data mix (`--scale 0.3`) and may still need a second session (see step 7). |
 | `--quant q4_k_m` | Default quantization: 8B → 5.0 GB, 14B → 9 GB. |
 | `--quant iq4_xs` / `q3_k_m` | Smaller file, so more of it fits on your 4 GB GPU and it runs faster, at slightly lower quality. |
 | `--max-hours 10` | Training time budget. The script saves and exports before Kaggle's 12 h limit. |
