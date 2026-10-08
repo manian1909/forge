@@ -30,6 +30,9 @@ LOG = WORK / "run_all.log"
 
 # leave time for export inside Kaggle's 12 h session limit
 DEFAULT_HOURS = {"qwen3-8b": 10.0, "qwen3-14b": 9.0, "qwen3-0.6b": 1.0}
+# share of the public data used by default, sized so one epoch fits a single
+# 12 h session on a T4 (8B trains at roughly 330 tokens/s; 14B at about half that)
+DEFAULT_SCALE = {"qwen3-8b": 0.6, "qwen3-14b": 0.3, "qwen3-0.6b": 1.0}
 
 
 def log(msg):
@@ -69,7 +72,8 @@ def main():
     p.add_argument("--quant", default="q4_k_m", help="q4_k_m | iq4_xs | q3_k_m | q5_k_m | q8_0")
     p.add_argument("--max-hours", type=float, help="training time budget (default depends on preset)")
     p.add_argument("--max-steps", type=int, default=-1, help="for a quick test run, e.g. 20")
-    p.add_argument("--scale", type=float, default=1.0, help="fraction of the public data mix to use")
+    p.add_argument("--scale", type=float, help="fraction of the public data mix to use "
+                                              "(default depends on preset)")
     p.add_argument("--resume", choices=["auto", "no"], default="auto",
                    help="auto: continue from a checkpoint found in attached inputs")
     p.add_argument("--skip-train", action="store_true", help="only export an existing adapter")
@@ -78,7 +82,8 @@ def main():
     WORK.mkdir(parents=True, exist_ok=True)
     out = WORK / f"forge-{a.preset}"
     hours = a.max_hours or DEFAULT_HOURS[a.preset]
-    log(f"preset={a.preset} quant={a.quant} max_hours={hours} kit={KIT}")
+    scale = a.scale if a.scale is not None else DEFAULT_SCALE[a.preset]
+    log(f"preset={a.preset} quant={a.quant} max_hours={hours} scale={scale} kit={KIT}")
 
     # 1. writable copy of the code (Kaggle inputs are read-only)
     if CODE.exists():
@@ -99,7 +104,9 @@ def main():
     # one GPU: Unsloth trains on a single device, and a 4-bit model under
     # DataParallel on both T4s fails
     env = {**os.environ, "CUDA_VISIBLE_DEVICES": "0", "PYTHONUNBUFFERED": "1",
-           "TOKENIZERS_PARALLELISM": "false"}
+           "TOKENIZERS_PARALLELISM": "false",
+           # fewer out-of-memory errors from fragmentation on the 15 GB T4
+           "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}
     run(["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv"], check=False)
 
     if not a.skip_train:
@@ -107,7 +114,7 @@ def main():
         n_agentic = sum(1 for _ in open(CODE / "data/out/agentic.jsonl", encoding="utf-8")) \
             if (CODE / "data/out/agentic.jsonl").exists() else 0
         log(f"agentic conversations in kit: {n_agentic}")
-        run([sys.executable, "data/build_dataset.py", "--scale", a.scale], env=env)
+        run([sys.executable, "data/build_dataset.py", "--scale", scale], env=env)
 
         # 4. train
         cmd = [sys.executable, "training/finetune.py", "--preset", a.preset, "--out", out,
