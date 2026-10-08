@@ -19,6 +19,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+# Unsloth patches transformers/peft when it is imported, so it has to be imported
+# before them; otherwise its memory savings are only partly applied
+if "--no-unsloth" not in sys.argv:
+    try:
+        import unsloth  # noqa: F401, E402
+    except ImportError:
+        pass
+
 from training.formatting import to_pairs, tokenize_pair  # noqa: E402
 
 PRESETS = {
@@ -47,6 +55,8 @@ def parse_args():
     p.add_argument("--max-hours", type=float, default=11.0, help="save and stop before Kaggle's 12h limit")
     p.add_argument("--resume-from", help="checkpoint directory to resume from")
     p.add_argument("--no-unsloth", action="store_true")
+    p.add_argument("--eval", action="store_true",
+                   help="evaluate on the val split during training (needs extra GPU memory)")
     p.add_argument("--seed", type=int, default=3407)
     return p.parse_args()
 
@@ -139,7 +149,11 @@ def main():
         tokenizer.pad_token = tokenizer.eos_token
 
     train = Dataset.from_list(build_split(tokenizer, args.train, max_len, args.seed))
-    val = Dataset.from_list(build_split(tokenizer, args.val, max_len, args.seed)) if Path(args.val).exists() else None
+    # evaluation materialises full-vocabulary logits (~4 GB at 4k tokens), which
+    # does not fit next to an 8B model on a 16 GB T4, so it is opt-in
+    val = None
+    if args.eval and Path(args.val).exists():
+        val = Dataset.from_list(build_split(tokenizer, args.val, max_len, args.seed))
 
     steps_per_epoch = math.ceil(len(train) / (cfg["batch"] * cfg["accum"]))
     print(f"preset={args.preset} max_len={max_len} batch={cfg['batch']}x{cfg['accum']} "
@@ -163,7 +177,8 @@ def main():
     targs = make_training_args(
         output_dir=str(out / "checkpoints"),
         per_device_train_batch_size=cfg["batch"],
-        per_device_eval_batch_size=cfg["batch"],
+        per_device_eval_batch_size=1,
+        prediction_loss_only=True,
         gradient_accumulation_steps=cfg["accum"],
         num_train_epochs=args.epochs,
         max_steps=args.max_steps,
@@ -178,7 +193,7 @@ def main():
         eval_strategy="steps" if val is not None else "no",
         eval_steps=100,
         save_strategy="steps",
-        save_steps=100,
+        save_steps=50,  # a crash or session timeout loses at most 50 steps
         save_total_limit=2,
         group_by_length=True,  # batches of similar length waste less compute on padding
         report_to="none",
