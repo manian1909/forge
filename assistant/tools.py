@@ -212,7 +212,11 @@ class Toolbox:
             )
         except subprocess.TimeoutExpired:
             return f"Error: timed out after {self.shell_timeout}s"
-        return _format_process(proc)
+        out = _format_process(proc)
+        if self.harden and re.search(r"Get-ChildItem[^|]*\|\s*Measure-Object\s+-Line", command, re.I):
+            out += ("\n[hint] Get-ChildItem | Measure-Object -Line counts files, not the lines inside them. "
+                    "To count text lines use (Get-Content file).Count")
+        return out
 
     def read_file(self, path):
         return self._resolve(path).read_text(encoding="utf-8", errors="replace")
@@ -225,9 +229,36 @@ class Toolbox:
 
     def list_dir(self, path="."):
         target = self._resolve(path)
-        entries = sorted(target.iterdir(), key=lambda p: (p.is_file(), p.name.lower()))
-        lines = [f"{e.name}/" if e.is_dir() else f"{e.name}  ({e.stat().st_size} bytes)" for e in entries]
+        depth = 3 if self.harden else 1  # show subfolders too, so a file inside docs/deep/ is not invisible
+        lines = []
+
+        def walk(folder, prefix, level):
+            for e in sorted(folder.iterdir(), key=lambda p: (p.is_file(), p.name.lower())):
+                if len(lines) >= 200:
+                    lines.append("... (more entries not shown)")
+                    return
+                if e.is_dir():
+                    lines.append(f"{prefix}{e.name}/")
+                    if level < depth and not e.name.startswith((".", "__pycache__")):
+                        walk(e, f"{prefix}{e.name}/", level + 1)
+                else:
+                    lines.append(f"{prefix}{e.name}  ({e.stat().st_size} bytes)")
+
+        walk(target, "", 1)
         return "\n".join(lines) if lines else "(empty directory)"
+
+    def snapshot(self, limit=2000):
+        """{relative path: modified time} of the workspace, to see what a turn really changed on disk."""
+        snap = {}
+        for i, p in enumerate(self.workspace.rglob("*")):
+            if i >= limit:
+                break
+            try:
+                if p.is_file():
+                    snap[str(p.relative_to(self.workspace)).replace("\\", "/")] = p.stat().st_mtime_ns
+            except OSError:
+                pass
+        return snap
 
     def web_search(self, query):
         from ddgs import DDGS

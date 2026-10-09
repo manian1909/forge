@@ -90,7 +90,8 @@ def attempt(task, args, llm, run_dir):
 
     agent = Agent(llm, Toolbox(ws, harden=not args.plain), confirm=None, max_steps=task.steps,
                   nudge=not args.plain, guard=not args.plain,
-                  faithful=not args.plain, verify_code=not (args.plain or args.no_verify))
+                  faithful=not args.plain, verify_code=not (args.plain or args.no_verify),
+                  max_seconds=args.task_timeout)
     calls, stats_all, answers = [], [], []
     deadline = time.time() + args.task_timeout
 
@@ -117,9 +118,14 @@ def attempt(task, args, llm, run_dir):
     except TaskTimeout:
         status, note = "timeout", f"exceeded {args.task_timeout}s"
     elapsed = time.time() - start
+    if status != "timeout" and answers and answers[-1].startswith("(stopped: time limit"):
+        status, note = "timeout", f"exceeded {args.task_timeout}s"
+    if status == "timeout" and elapsed > args.task_timeout * 1.5:
+        # the limit is checked on every streamed chunk, so a big overshoot means the machine was suspended or stalled
+        status, note = "error", f"machine stalled ({elapsed:.0f}s elapsed); not counted against the model, rerun to retry"
 
     answer = answers[-1] if answers else ""
-    if status != "timeout":
+    if status not in ("timeout", "error"):
         ctx = SimpleNamespace(
             answer=answer, text="\n".join(answers), ws=ws,
             calls=[{"name": c["name"], "args": c["args"], "result": c["result"]} for c in calls],

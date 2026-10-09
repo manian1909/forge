@@ -24,7 +24,7 @@ from pathlib import Path
 
 import httpx
 
-from .llm import LLMClient, LLMError
+from .llm import LLMClient, LLMError, TurnTimeout
 
 DEFAULT_PROVIDERS = "providers.json"
 
@@ -142,14 +142,16 @@ class RoutedLLM:
                  f"{backend.name} rejected the request ({err})")
 
     # ---------------------------------------------------------------- chat
-    def chat(self, messages, tools=None, on_token=None):
+    def chat(self, messages, tools=None, on_token=None, deadline=None):
         last_err = None
         order = self._order(messages)
         for i, b in enumerate(order):
             if b.kind == "remote" and not b.available:
                 continue
             try:
-                message, stats = b.client.chat(messages, tools=tools, on_token=on_token)
+                message, stats = b.client.chat(messages, tools=tools, on_token=on_token, deadline=deadline)
+            except TurnTimeout:
+                raise
             except (LLMError, httpx.HTTPError, ConnectionError, json.JSONDecodeError) as e:
                 self._penalise(b, e)
                 last_err = e

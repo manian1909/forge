@@ -12,7 +12,10 @@ Beyond the basic loop the agent adds four safety nets, each switchable:
 import hashlib
 import json
 import re
+import time
+from pathlib import Path
 
+from .llm import TurnTimeout
 from .prompts import SYSTEM_PROMPT
 from .tools import NEEDS_CONFIRMATION, TOOL_SCHEMAS
 
@@ -53,6 +56,33 @@ VERIFY_OUTPUT = ("(system note) I ran the Python code from your answer. Real out
 VERIFIED_FOOTER = "\n\n(Verified: I ran this code and the output was correct.)"
 
 
+NUDGE_UNWRITTEN = ("(system note) You said you changed {files}, but that file was not modified on disk. The code in your reply "
+                   "is not saved anywhere. Use write_file to actually change it, then run the real test and report the result.")
+NUDGE_REPEAT = ("You already ran exactly this and it failed:\n{error}\nDo not resubmit it unchanged. Find the cause in the error "
+                "and change the logic, or ask the user.")
+CLAIM_VERB_RE = re.compile(r"\b(fixed|updated|created|saved|wrote|written|modified|edited|changed|replaced)\b", re.I)
+NEGATION_RE = re.compile(r"\b(not|n't|never|will|would|should|could|can|need|needs|let's|let me|going to|if|once)\b", re.I)
+FILE_RE = re.compile(r"[\w][\w./\\-]*\.(?:py|txt|md|json|csv|ini|js|ts|html|css|ya?ml|toml|cfg|log|sh|ps1)\b", re.I)
+
+
+def unwritten_claims(text, before, after):
+    """Files the answer says were changed that were not touched on disk during this turn."""
+    prose = re.sub(r"```.*?```", " ", text, flags=re.S)
+    changed = {Path(p).name.lower() for p, m in after.items() if before.get(p) != m}
+    bad = []
+    for sentence in re.split(r"(?<=[.!?])\s+|\n+", prose):
+        verb = CLAIM_VERB_RE.search(sentence)
+        if not verb or NEGATION_RE.search(sentence):
+            continue
+        # the file the verb is about: the first one after it ("created stats.py"), else the last one before it ("bugs in calc.py were fixed")
+        named = FILE_RE.search(sentence, verb.end()) or next(iter(list(FILE_RE.finditer(sentence, 0, verb.start()))[::-1]), None)
+        if named:
+            base = Path(named.group(0).replace("\\", "/")).name.lower()
+            if base not in changed and base not in bad:
+                bad.append(base)
+    return bad
+
+
 def readonly_python(code):
     return not SIDE_EFFECT_RE.search(code or "")
 
@@ -67,7 +97,7 @@ def _numbers(text):
 
 class Agent:
     def __init__(self, llm, toolbox, confirm=None, max_steps=8, max_history=40,
-                 nudge=True, guard=True, faithful=True, verify_code=True):
+                 nudge=True, guard=True, faithful=True, verify_code=True, max_seconds=None):
         """``confirm(name, args) -> bool`` is asked before side-effecting tools.
 
         With ``confirm=None`` every tool runs without asking.
@@ -78,6 +108,7 @@ class Agent:
         self.max_steps = max_steps
         self.max_history = max_history
         self.nudge, self.guard, self.faithful, self.verify_code = nudge, guard, faithful, verify_code
+        self.max_seconds = max_seconds  # hard wall-clock limit for one run() call; None means unlimited
         self.reset()
 
     def reset(self):
@@ -103,9 +134,15 @@ class Agent:
             return NUDGE_ACT
         return None
 
-    def _unfaithful(self, text, last_run):
-        """Note to send when the answer ignores or contradicts the last run_python/run_shell result."""
-        if not self.faithful or last_run is None or CODE_BLOCK_RE.search(text):
+    def _unfaithful(self, text, last_run, before=None, wants_action=False):
+        """Note to send when the answer ignores the last tool result or claims a file change that never happened."""
+        if not self.faithful:
+            return None
+        if wants_action and before is not None and CLAIM_VERB_RE.search(text):
+            bad = unwritten_claims(text, before, self.toolbox.snapshot())
+            if bad:
+                return NUDGE_UNWRITTEN.format(files=", ".join(bad))
+        if last_run is None or CODE_BLOCK_RE.search(text):
             return None
         name, result = last_run
         if "printed nothing" in result and re.search(r"\d", text):
@@ -150,10 +187,17 @@ class Agent:
         nudges = faith_nudges = verify_rounds = 0
         tested_ok, verified, pending = False, set(), None
         user_wants_action = bool(ACTION_RE.search(user_text))
+        deadline = time.time() + self.max_seconds if self.max_seconds else None
+        before = self.toolbox.snapshot() if self.faithful else None
+        failed_runs = {}
         steps, budget = 0, self.max_steps   # checks add to the budget so they never starve the real work
         while steps < budget:
             steps += 1
-            message, stats = self.llm.chat(self.messages, tools=TOOL_SCHEMAS, on_token=on_token)
+            try:
+                message, stats = self.llm.chat(self.messages, tools=TOOL_SCHEMAS, on_token=on_token,
+                                               **({"deadline": deadline} if deadline else {}))
+            except TurnTimeout:
+                return f"(stopped: time limit of {int(self.max_seconds)}s reached)", all_stats
             all_stats.append(stats)
             self.messages.append(message)
             calls = message.get("tool_calls")
@@ -171,7 +215,7 @@ class Agent:
                     budget += 1
                     self.messages.append({"role": "user", "content": note})
                     continue
-                note = self._unfaithful(text, last_run) if faith_nudges < 1 else None
+                note = self._unfaithful(text, last_run, before, user_wants_action) if faith_nudges < 2 else None
                 if note is not None:
                     faith_nudges += 1
                     self.messages.append({"role": "user", "content": note})
@@ -207,7 +251,13 @@ class Agent:
                     elif self.confirm and name in NEEDS_CONFIRMATION and not self.confirm(name, args):
                         result = "The user declined to run this tool call."
                     else:
-                        result = self.toolbox.call(name, args)
+                        run_key = hashlib.sha1(f"{name}{json.dumps(args, sort_keys=True)}".encode()).hexdigest()
+                        if run_key in failed_runs:
+                            result = NUDGE_REPEAT.format(error=failed_runs[run_key][:300])
+                        else:
+                            result = self.toolbox.call(name, args)
+                            if name in ("run_python", "run_shell") and not tool_succeeded(result):
+                                failed_runs[run_key] = result
                     if name in ("run_python", "run_shell"):
                         last_run = (name, result)
                         if name == "run_python" and tool_succeeded(result) and (
@@ -218,4 +268,6 @@ class Agent:
                 if on_result:
                     on_result(name, result)
                 self.messages.append({"role": "tool", "tool_call_id": call["id"], "content": result})
+            if deadline and time.time() > deadline:
+                return f"(stopped: time limit of {int(self.max_seconds)}s reached)", all_stats
         return "(stopped: too many tool steps in a row)", all_stats

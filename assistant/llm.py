@@ -13,6 +13,10 @@ import httpx
 THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
 
 
+class TurnTimeout(TimeoutError):
+    """The wall-clock budget for this turn ran out (checked on every streamed chunk, so it cannot hang)."""
+
+
 class LLMError(RuntimeError):
     """The server answered with an error. ``status`` and ``retry_after`` help a router decide what to do."""
 
@@ -45,7 +49,7 @@ class LLMClient:
         except httpx.HTTPError:
             return False
 
-    def chat(self, messages, tools=None, on_token=None):
+    def chat(self, messages, tools=None, on_token=None, deadline=None):
         """Stream one assistant turn.
 
         Returns (message_dict, stats). ``on_token`` is called with each text
@@ -73,6 +77,8 @@ class LLMClient:
                 raise LLMError(f"LLM server error {resp.status_code}: {resp.text[:500]}", resp.status_code,
                                float(retry) if retry and retry.replace(".", "", 1).isdigit() else None)
             for line in resp.iter_lines():
+                if deadline and time.time() > deadline:
+                    raise TurnTimeout()
                 if not line.startswith("data:"):
                     continue
                 payload = line[5:].strip()

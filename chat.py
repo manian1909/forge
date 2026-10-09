@@ -38,6 +38,7 @@ def main():
                    help="local: never leave this machine. auto: local first, remote APIs when it struggles. remote: APIs first")
     p.add_argument("--providers", default="providers.json", help="remote API list (see providers.example.json)")
     p.add_argument("--stats", action="store_true", help="print speed after each reply")
+    p.add_argument("--turn-timeout", type=int, default=900, help="stop a single reply after this many seconds (0 = no limit)")
     p.add_argument("--no-verify", action="store_true", help="don't run the code in answers to check it before replying")
     a = p.parse_args()
 
@@ -61,7 +62,8 @@ def main():
         answer = input(f"{YELLOW}  run {name}? [y/N] {RESET}").strip().lower()
         return answer in ("y", "yes")
 
-    agent = Agent(llm, Toolbox(a.workspace), confirm=confirm, verify_code=not a.no_verify)
+    agent = Agent(llm, Toolbox(a.workspace), confirm=confirm, verify_code=not a.no_verify,
+                  max_seconds=a.turn_timeout or None)
 
     def on_tool(name, args):
         print(f"\n{CYAN}  > {name}{RESET}\n{DIM}{preview(args)}{RESET}")

@@ -10,7 +10,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from assistant.agent import Agent, VERIFIED_FOOTER  # noqa: E402
+from assistant.agent import Agent, VERIFIED_FOOTER, unwritten_claims  # noqa: E402
+from assistant.llm import TurnTimeout  # noqa: E402
 from assistant.tools import Toolbox  # noqa: E402
 
 STATS = {"tokens": 1, "tokens_per_sec": 1.0, "time_to_first_token": 0.0}
@@ -23,7 +24,8 @@ class Script:
         self.replies = list(replies)
         self.seen = []
 
-    def chat(self, messages, tools=None, on_token=None):
+    def chat(self, messages, tools=None, on_token=None, deadline=None):
+        self.deadline = deadline
         self.seen.append([dict(m) for m in messages])
         return self.replies.pop(0), dict(STATS)
 
@@ -50,6 +52,41 @@ def test_failing_code_is_sent_back_and_fixed():
     out, _ = agent(llm).run("write f")
     assert "failed" in last_user_note(llm, 1)          # the model was shown the real error
     assert out.endswith(VERIFIED_FOOTER) and "def f(x)" in out
+
+
+def test_claiming_a_fix_that_was_never_written_to_disk_is_challenged():
+    d = tempfile.mkdtemp()
+    (Path(d) / "calc.py").write_text("def average(xs):\n    return sum(xs) / (len(xs) - 1)\n")
+    llm = Script(say("The test passed, so the bugs in calc.py were fixed correctly."), say("Writing it now."))
+    Agent(llm, Toolbox(d), confirm=None, verify_code=False).run("Fix the bug in calc.py")
+    assert "not modified on disk" in last_user_note(llm, 1) and "calc.py" in last_user_note(llm, 1)
+
+
+def test_claim_check_accepts_files_that_really_changed_and_ignores_inputs():
+    before = {"calc.py": 1, "numbers.txt": 1}
+    after = {"calc.py": 2, "numbers.txt": 1, "stats.py": 5}
+    assert unwritten_claims("I fixed calc.py and created stats.py that reads numbers.txt.", before, after) == []
+    assert unwritten_claims("The bugs in calc.py were fixed.", before, before) == ["calc.py"]
+    assert unwritten_claims("I will update calc.py next.", before, before) == []
+
+
+def test_resubmitting_code_that_already_failed_is_short_circuited():
+    bad = "raise ValueError('boom')"
+    llm = Script(call("run_python", code=bad), call("run_python", code=bad), say("giving up"))
+    a = agent(llm)
+    a.run("run it")
+    results = [m["content"] for m in a.messages if m["role"] == "tool"]
+    assert "ValueError" in results[0] and results[1].startswith("You already ran exactly this")
+
+
+def test_time_limit_is_passed_to_the_model_and_ends_the_turn():
+    class Slow(Script):
+        def chat(self, messages, tools=None, on_token=None, deadline=None):
+            assert deadline is not None
+            raise TurnTimeout()
+
+    out, _ = Agent(Slow(), Toolbox(tempfile.mkdtemp()), confirm=None, max_seconds=5).run("hi")
+    assert out.startswith("(stopped: time limit of 5s")
 
 
 def test_code_checks_do_not_use_up_the_task_step_budget():

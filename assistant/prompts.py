@@ -6,7 +6,8 @@ ASSISTANT_NAME = "Forge"
 
 _SHELL_NOTE = (
     "\n- The shell is Windows PowerShell 5.1: chain commands with ';' (never '&&'), use New-Item instead of touch "
-    "and Get-ChildItem instead of ls -la. To edit a file use read_file then write_file, never Get-Content | Set-Content on the same file."
+    "and Get-ChildItem instead of ls -la. To edit a file use read_file then write_file, never Get-Content | Set-Content on the same file. Count lines with (Get-Content file).Count; search text in files with "
+    "Select-String -Path * -Pattern word -Recurse; list_dir already shows subfolders."
     if platform.system() == "Windows" else ""
 )
 
