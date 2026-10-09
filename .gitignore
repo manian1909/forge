@@ -54,3 +54,5 @@ bench_runs_*.log
 # Remote API config and keys
 providers.json
 .env
+
+Forge_Report.pdf
