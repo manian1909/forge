@@ -96,6 +96,29 @@ def test_code_checks_do_not_use_up_the_task_step_budget():
     assert out.endswith(VERIFIED_FOOTER)
 
 
+def test_a_refusal_is_pushed_back_once_and_the_second_reply_is_used():
+    llm = Script(say("I'm not able to guess your marks. Want study tips?"), say("Guess: more than 24, probably 31. Pure guess."))
+    out, _ = agent(llm).run("guess my marks")
+    assert "Do not refuse" in last_user_note(llm, 1) and out.startswith("Guess")
+
+
+def test_hedging_is_not_a_refusal():
+    from assistant.agent import is_refusal
+    assert not is_refusal("I'll guess 28, but I can't be certain. It is just a guess.")
+    assert not is_refusal("Guess: more than 24. I cannot be sure though.")
+    assert is_refusal("I'm not able to guess your marks. Want study tips?")
+    assert is_refusal("I’m sorry, but I can’t help with that.")
+
+
+def test_refusals_can_be_left_alone_and_tool_errors_are_not_treated_as_refusals():
+    llm = Script(say("I can't do that."))
+    out, _ = Agent(llm, Toolbox(tempfile.mkdtemp()), confirm=None, no_refuse=False).run("guess")
+    assert out == "I can't do that." and len(llm.seen) == 1
+    llm = Script(call("read_file", path="missing.txt"), say("I can't find missing.txt."))
+    out, _ = agent(llm).run("read missing.txt")
+    assert out == "I can't find missing.txt." and len(llm.seen) == 2
+
+
 def test_correct_output_is_confirmed_and_history_stays_clean():
     llm = Script(say("```python\nprint(6*7)\n```"), say("VERIFIED"))
     a = agent(llm)

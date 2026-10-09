@@ -66,7 +66,8 @@ class Jarvis:
                             log=lambda m: self.console.print(f"[dim]  [router] {m}[/dim]"))
         self.workspace = Path(args.workspace).resolve()
         self.agent = Agent(self.llm, Toolbox(self.workspace), confirm=self.confirm, max_steps=14,
-                           verify_code=not args.no_verify, max_seconds=args.turn_timeout or None)
+                           verify_code=not args.no_verify, max_seconds=args.turn_timeout or None,
+                           no_refuse=not args.allow_refusals)
         self.transcript = []
 
     # ------------------------------------------------------------ rendering helpers
@@ -161,6 +162,12 @@ class Jarvis:
         self.console.print(f"[magenta]  verify[/magenta] [dim]ran the code from the answer: {label}\n    {last}[/dim]")
         self.busy(True, "thinking")
 
+    def on_retry(self, reason):
+        self.end_text()
+        self.busy(False)
+        self.console.print(f"\n[yellow]  retrying[/yellow] [dim]{reason}[/dim]")
+        self.busy(True, "thinking")
+
     def confirm(self, name, args):
         if self.mode == "auto" or name in self.always:
             return True
@@ -184,7 +191,7 @@ class Jarvis:
         self.busy(True, "thinking")
         try:
             answer, stats = self.agent.run(text, on_token=self.on_token, on_tool=self.on_tool, on_result=self.on_result,
-                                           on_verify=self.on_verify)
+                                           on_verify=self.on_verify, on_retry=self.on_retry)
         except KeyboardInterrupt:
             self.end_text()
             self.busy(False)
@@ -332,6 +339,7 @@ def build_parser():
     p.add_argument("--llm-mode", choices=["local", "auto", "remote"], default="local", help="use remote APIs too (see REMOTE.md)")
     p.add_argument("--providers", default=str(REPO / "providers.json"))
     p.add_argument("--no-verify", action="store_true", help="do not run code from answers to check it")
+    p.add_argument("--allow-refusals", action="store_true", help="let the model refuse (by default a refusal is pushed back once)")
     p.add_argument("--no-start", action="store_true", help="do not start Ollama automatically")
     p.add_argument("--stats", action="store_true", help="show tokens/s after each answer")
     p.add_argument("--check", action="store_true", help="check the setup and exit")
