@@ -13,9 +13,18 @@ import httpx
 THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
 
 
+class LLMError(RuntimeError):
+    """The server answered with an error. ``status`` and ``retry_after`` help a router decide what to do."""
+
+    def __init__(self, message, status=None, retry_after=None):
+        super().__init__(message)
+        self.status = status
+        self.retry_after = retry_after
+
+
 class LLMClient:
     def __init__(self, base_url="http://127.0.0.1:8080/v1", model="local", temperature=0.6,
-                 max_tokens=2048, extra_body=None):
+                 max_tokens=2048, extra_body=None, api_key=None, timeout=600.0):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.temperature = temperature
@@ -27,11 +36,12 @@ class LLMClient:
             "chat_template_kwargs": {"enable_thinking": False},
             "reasoning_effort": "none",
         }
-        self.http = httpx.Client(timeout=httpx.Timeout(600.0, connect=5.0))
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        self.http = httpx.Client(timeout=httpx.Timeout(timeout, connect=8.0), headers=headers)
 
     def health(self):
         try:
-            return self.http.get(f"{self.base_url}/models").status_code == 200
+            return self.http.get(f"{self.base_url}/models").status_code in (200, 401, 403)
         except httpx.HTTPError:
             return False
 
@@ -59,7 +69,9 @@ class LLMClient:
         with self.http.stream("POST", f"{self.base_url}/chat/completions", json=body) as resp:
             if resp.status_code != 200:
                 resp.read()
-                raise RuntimeError(f"LLM server error {resp.status_code}: {resp.text[:500]}")
+                retry = resp.headers.get("retry-after")
+                raise LLMError(f"LLM server error {resp.status_code}: {resp.text[:500]}", resp.status_code,
+                               float(retry) if retry and retry.replace(".", "", 1).isdigit() else None)
             for line in resp.iter_lines():
                 if not line.startswith("data:"):
                     continue

@@ -1,0 +1,26 @@
+[
+  {
+    "name": "groq",
+    "base_url": "https://api.groq.com/openai/v1",
+    "model": "llama-3.3-70b-versatile",
+    "api_key_env": "GROQ_API_KEY"
+  },
+  {
+    "name": "openrouter-free",
+    "base_url": "https://openrouter.ai/api/v1",
+    "model": "qwen/qwen3-coder:free",
+    "api_key_env": "OPENROUTER_API_KEY"
+  },
+  {
+    "name": "cerebras",
+    "base_url": "https://api.cerebras.ai/v1",
+    "model": "llama-3.3-70b",
+    "api_key_env": "CEREBRAS_API_KEY"
+  },
+  {
+    "name": "gemini-flash",
+    "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+    "model": "gemini-2.5-flash",
+    "api_key_env": "GEMINI_API_KEY"
+  }
+]

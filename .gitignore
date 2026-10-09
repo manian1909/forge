@@ -50,3 +50,7 @@ dist/
 
 bench_runs/
 bench_runs_*.log
+
+# Remote API config and keys
+providers.json
+.env
