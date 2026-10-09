@@ -47,3 +47,6 @@ tools/
 
 # Packaged Kaggle kit
 dist/
+
+bench_runs/
+bench_runs_*.log
