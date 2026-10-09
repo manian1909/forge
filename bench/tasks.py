@@ -104,6 +104,7 @@ def extract_code(ctx, fname=None):
 
 
 def run_script(ws, source, timeout=30):
+    ws = Path(ws).resolve()
     path = ws / "_check.py"
     path.write_text(source, encoding="utf-8")
     try:

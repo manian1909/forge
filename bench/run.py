@@ -81,7 +81,7 @@ def select(tasks, only):
 
 def attempt(task, args, llm, run_dir):
     """Run one task once. Raises on infrastructure problems; returns a result record otherwise."""
-    ws = run_dir / "ws" / task.id
+    ws = (run_dir / "ws" / task.id).resolve()
     if ws.exists():
         shutil.rmtree(ws, ignore_errors=True)
     ws.mkdir(parents=True)
