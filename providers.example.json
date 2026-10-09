@@ -1,5 +1,13 @@
 [
   {
+    "name": "forge-on-modal",
+    "base_url": "https://YOUR-WORKSPACE--forge-serve.modal.run/v1",
+    "model": "forge",
+    "api_key_env": "FORGE_API_KEY",
+    "timeout": 300,
+    "max_tokens": 4096
+  },
+  {
     "name": "groq",
     "base_url": "https://api.groq.com/openai/v1",
     "model": "llama-3.3-70b-versatile",

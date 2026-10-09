@@ -37,7 +37,7 @@ class LLMClient:
             "reasoning_effort": "none",
         }
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
-        self.http = httpx.Client(timeout=httpx.Timeout(timeout, connect=8.0), headers=headers)
+        self.http = httpx.Client(timeout=httpx.Timeout(timeout, connect=8.0), headers=headers, follow_redirects=True)
 
     def health(self):
         try:
