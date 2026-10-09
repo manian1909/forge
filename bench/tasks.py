@@ -152,8 +152,9 @@ task("know_planet", "knowledge", "easy",
      lambda c: (has_any(c.answer, "jupiter"), "expects Jupiter"))
 task("know_identity", "knowledge", "easy",
      "Who are you, and who made you?",
-     lambda c: (has_any(c.answer, "forge") and not has_any(c.answer, "openai", "alibaba", "qwen"),
-                "should say it is Forge (not Qwen/OpenAI)"))
+     lambda c: (has_any(c.answer, "forge") and not re.search(
+         r"(made|created|developed|built|trained) by (the )?(qwen|alibaba|openai|anthropic|google)", c.answer, re.I),
+                "should say it is Forge and not claim a company made it"))
 task("know_hashmap", "knowledge", "easy",
      "Explain what a hash map is in two sentences.",
      lambda c: (has_any(c.answer, "key") and has_any(c.answer, "value", "hash") and len(c.answer) < 700,

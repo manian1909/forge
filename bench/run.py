@@ -25,7 +25,7 @@ import httpx
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from assistant.agent import Agent  # noqa: E402
-from assistant.llm import LLMClient  # noqa: E402
+from assistant.router import make_llm  # noqa: E402
 from assistant.tools import Toolbox  # noqa: E402
 from bench import report  # noqa: E402
 from bench.tasks import TASKS  # noqa: E402
@@ -88,7 +88,7 @@ def attempt(task, args, llm, run_dir):
     if task.setup:
         task.setup(ws)
 
-    agent = Agent(llm, Toolbox(ws), confirm=None, max_steps=task.steps)
+    agent = Agent(llm, Toolbox(ws, harden=not args.plain), confirm=None, max_steps=task.steps, nudge=not args.plain)
     calls, stats_all, answers = [], [], []
     deadline = time.time() + args.task_timeout
 
@@ -145,6 +145,7 @@ def attempt(task, args, llm, run_dir):
         "tool_calls": [{"name": c["name"], "args": trim(json.dumps(c["args"], ensure_ascii=False), 400),
                         "result": trim(c["result"], 300)} for c in calls],
         "llm_calls": len(stats_all), "tokens": tokens,
+        "backends": sorted({s.get("backend", "local") for s in stats_all}),
         "tps": round(tokens / gen_time, 2) if gen_time else 0.0,
         "ttft": round(sum(s["time_to_first_token"] for s in stats_all) / max(len(stats_all), 1), 2),
         "seconds": round(elapsed, 1), "finished_at": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -166,6 +167,9 @@ def main():
     p.add_argument("--out", default="bench_runs")
     p.add_argument("--only", default="", help="comma list of task ids, categories or difficulties")
     p.add_argument("--temperature", type=float, default=0.2)
+    p.add_argument("--mode", choices=["local", "auto", "remote"], default="local")
+    p.add_argument("--providers", default="providers.json")
+    p.add_argument("--plain", action="store_true", help="old behaviour: no tool hardening or nudges (for A/B runs)")
     p.add_argument("--task-timeout", type=int, default=900, help="seconds allowed per task")
     p.add_argument("--attempts", type=int, default=3, help="retries when the server hiccups")
     p.add_argument("--fresh", action="store_true", help="delete previous results for this run")
@@ -202,7 +206,7 @@ def main():
     print(f"Forge benchmark: {len(tasks)} tasks selected, {skipped} already done (recovered), {len(todo)} to run.")
     print(f"Results: {results_path}   (Ctrl+C is safe; rerun the same command to continue)\n", flush=True)
 
-    llm = LLMClient(args.url, args.model, temperature=args.temperature)
+    llm = make_llm(args.url, args.model, args.temperature, args.mode, args.providers, log=print)
     if not wait_for_server(llm, max_wait=120):
         sys.exit(f"Can't reach a model server at {args.url}. Start Ollama (or llama-server) first.")
     keep_awake()
