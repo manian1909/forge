@@ -89,7 +89,8 @@ def attempt(task, args, llm, run_dir):
         task.setup(ws)
 
     agent = Agent(llm, Toolbox(ws, harden=not args.plain), confirm=None, max_steps=task.steps,
-                  nudge=not args.plain, guard=not args.plain)
+                  nudge=not args.plain, guard=not args.plain,
+                  faithful=not args.plain, verify_code=not (args.plain or args.no_verify))
     calls, stats_all, answers = [], [], []
     deadline = time.time() + args.task_timeout
 
@@ -131,6 +132,10 @@ def attempt(task, args, llm, run_dir):
             try:
                 ok, note = task.check(ctx)
                 status = "pass" if ok else "fail"
+                if not ok and "network" in task.tags and any(
+                        re.search(r"DNS|Connect|getaddrinfo|timed out|Timeout", c["result"]) and c["result"].startswith("Error")
+                        for c in calls):
+                    status, note = "error", "network unavailable (not counted against the model)"
             except Exception as e:  # a checker bug must not look like a model failure
                 status, note = "fail", f"checker raised {type(e).__name__}: {e}"
 
@@ -170,7 +175,9 @@ def main():
     p.add_argument("--temperature", type=float, default=0.2)
     p.add_argument("--mode", choices=["local", "auto", "remote"], default="local")
     p.add_argument("--providers", default="providers.json")
-    p.add_argument("--plain", action="store_true", help="old behaviour: no tool hardening or nudges (for A/B runs)")
+    p.add_argument("--plain", action="store_true", help="old behaviour: no tool hardening, nudges or code checks (for A/B runs)")
+    p.add_argument("--no-verify", action="store_true", help="turn off running the model's code before it answers")
+    p.add_argument("--think", action="store_true", help="enable Qwen3 thinking mode (slow, long outputs)")
     p.add_argument("--task-timeout", type=int, default=900, help="seconds allowed per task")
     p.add_argument("--attempts", type=int, default=3, help="retries when the server hiccups")
     p.add_argument("--fresh", action="store_true", help="delete previous results for this run")
@@ -207,7 +214,7 @@ def main():
     print(f"Forge benchmark: {len(tasks)} tasks selected, {skipped} already done (recovered), {len(todo)} to run.")
     print(f"Results: {results_path}   (Ctrl+C is safe; rerun the same command to continue)\n", flush=True)
 
-    llm = make_llm(args.url, args.model, args.temperature, args.mode, args.providers, log=print)
+    llm = make_llm(args.url, args.model, args.temperature, args.mode, args.providers, log=print, think=args.think)
     if not wait_for_server(llm, max_wait=120):
         sys.exit(f"Can't reach a model server at {args.url}. Start Ollama (or llama-server) first.")
     keep_awake()

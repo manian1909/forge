@@ -38,6 +38,7 @@ def main():
                    help="local: never leave this machine. auto: local first, remote APIs when it struggles. remote: APIs first")
     p.add_argument("--providers", default="providers.json", help="remote API list (see providers.example.json)")
     p.add_argument("--stats", action="store_true", help="print speed after each reply")
+    p.add_argument("--no-verify", action="store_true", help="don't run the code in answers to check it before replying")
     a = p.parse_args()
 
     if sys.platform == "win32":
@@ -60,7 +61,7 @@ def main():
         answer = input(f"{YELLOW}  run {name}? [y/N] {RESET}").strip().lower()
         return answer in ("y", "yes")
 
-    agent = Agent(llm, Toolbox(a.workspace), confirm=confirm)
+    agent = Agent(llm, Toolbox(a.workspace), confirm=confirm, verify_code=not a.no_verify)
 
     def on_tool(name, args):
         print(f"\n{CYAN}  > {name}{RESET}\n{DIM}{preview(args)}{RESET}")
@@ -70,6 +71,12 @@ def main():
         shown = "\n".join(f"    {l}" for l in lines[:12])
         more = f"\n    ... ({len(lines) - 12} more lines)" if len(lines) > 12 else ""
         print(f"{DIM}{shown}{more}{RESET}")
+
+    def on_verify(kind, result):
+        label = {"failed": "failed, asking the model to fix it", "untested": "ran but printed nothing, asking for real tests",
+                 "output": "ran OK, checking the output"}[kind]
+        first = (result.strip().splitlines() or [""])[-1][:100]
+        print(f"\n{CYAN}  [verify] ran the code from the answer: {label}{RESET}\n{DIM}    {first}{RESET}")
 
     print(f"{ASSISTANT_NAME} ready. Tools {'run automatically' if a.auto else 'ask before running'}. /exit to quit.\n")
     while True:
@@ -107,6 +114,7 @@ def main():
                 on_token=lambda t: print(t, end="", flush=True),
                 on_tool=on_tool,
                 on_result=on_result,
+                on_verify=on_verify,
             )
         except KeyboardInterrupt:
             print("\n(interrupted)")

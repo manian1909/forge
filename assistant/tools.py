@@ -5,6 +5,7 @@ dataset builders, so the model is trained on exactly the tools it gets at
 inference time.
 """
 
+import ast
 import html
 import os
 import platform
@@ -17,6 +18,30 @@ from pathlib import Path
 MAX_OUTPUT = 4000
 IS_WINDOWS = platform.system() == "Windows"
 SHELL_NAME = "PowerShell" if IS_WINDOWS else "bash"
+
+
+def autoprint_last_expression(code):
+    """Make a script behave like a REPL: if it ends in a bare expression, print it (unless it is None).
+
+    Models often end with `total` or `5 / 36` and forget print(), which used to give "(no output)" and an invented answer.
+    """
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return code
+    if not tree.body or not isinstance(tree.body[-1], ast.Expr):
+        return code
+    last = tree.body[-1]
+    value = last.value
+    if isinstance(value, ast.Constant) and isinstance(value.value, str):
+        return code  # a docstring or comment-like string
+    if isinstance(value, ast.Call) and getattr(value.func, "id", None) == "print":
+        return code
+    segment = ast.get_source_segment(code, last)
+    if not segment:
+        return code
+    head = "\n".join(code.splitlines()[:last.lineno - 1])
+    return f"{head}\n__r = ({segment})\nif __r is not None:\n    print(__r)\n"
 
 
 def _truncate(text, limit=MAX_OUTPUT):
@@ -139,7 +164,7 @@ class Toolbox:
         try:
             result = _truncate(fn(**(args or {})))
             if self.harden and name in ("run_shell", "run_python"):
-                result = self._add_hints(result)
+                result = self._add_hints(result, name)
             if self.harden and name in ("read_file", "fetch_url", "web_search"):
                 result = UNTRUSTED_BANNER + result
             return result
@@ -148,12 +173,16 @@ class Toolbox:
         except Exception as e:  # noqa: BLE001 - the model should see any failure
             return f"Error: {type(e).__name__}: {e}"
 
-    def _add_hints(self, result):
+    def _add_hints(self, result, name=""):
         hints = [h for pat, h in SHELL_HINTS if pat.search(result)]
+        if name == "run_python" and result.strip() == "(no output)":
+            hints.append("[hint] The script printed nothing. Use print() to show the result, and only report what it prints.")
         return result + "\n" + "\n".join(hints) if hints else result
 
     # ---------------------------------------------------------------- tools
     def run_python(self, code):
+        if self.harden:
+            code = autoprint_last_expression(code)
         with tempfile.NamedTemporaryFile("w", suffix=".py", dir=self.workspace,
                                          delete=False, encoding="utf-8") as f:
             f.write(code)

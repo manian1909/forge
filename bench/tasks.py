@@ -255,8 +255,8 @@ task("math_div35", "reasoning", "hard",
      lambda c: (has_num(c.answer, 466), "466"))
 task("math_dice", "reasoning", "hard",
      "If I roll two fair six-sided dice, what is the probability that the sum is 8?",
-     lambda c: (has_any(c.answer, "5/36") or bool(re.search(r"0?\.138", c.answer)) or "13.8" in c.answer or "13.9" in c.answer,
-                "5/36"))
+     lambda c: (lambda t: (has_any(t, "5/36") or bool(re.search(r"0?\.138", t)) or "13.8" in t or "13.9" in t,
+                      "5/36 (LaTeX accepted)"))(re.sub(r"\\[dt]?frac\{(\d+)\}\{(\d+)\}", r"\1/\2", c.answer)))
 task("math_prime_sum", "reasoning", "hard",
      "What is the sum of all prime numbers below 100?",
      lambda c: (has_num(c.answer, 1060), "1060"))
@@ -322,7 +322,7 @@ task("py_random", "python_tool", "hard",
 task("py_wordfreq", "python_tool", "hard",
      "Use Python to find the most common word in this text (case-insensitive, ignore punctuation) and its count: "
      "'The cat sat on the mat. The dog chased the cat, and the cat ran. A dog is a dog.'",
-     needs_tool("run_python", lambda c: (has_any(c.answer, "the") and has_num(c.answer, 6), "'the' x6")))
+     needs_tool("run_python", lambda c: (has_any(c.answer, "the") and has_num(c.answer, 5), "'the' x5")))
 
 # ============================================================== coding
 code_task("code_palindrome", "easy",
@@ -538,8 +538,8 @@ task("agent_csv_pipeline", "agentic", "hard",
 task("agent_scrape_free", "agentic", "hard",
      "Write a Python script stats.py that reads numbers.txt (one number per line) and prints the mean, median and max. "
      "Run it and report the three values.",
-     lambda c: (c.used("run_python", "run_shell") and has_num(c.answer, 6) and has_num(c.answer, 5) and has_num(c.answer, 14),
-                "mean 6, median 5, max 14"),
+     lambda c: (c.used("run_python", "run_shell") and has_num(c.answer, 6) and has_num(c.answer, 5.5) and has_num(c.answer, 14),
+                "mean 6, median 5.5, max 14"),
      setup=files({"numbers.txt": "\n".join(map(str, [1, 2, 3, 5, 6, 7, 8, 14, 9, 5])) + "\n"}))
 
 # ============================================================== web
