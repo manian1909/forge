@@ -28,6 +28,7 @@ from reportlab.platypus import (Image, PageBreak, Paragraph, SimpleDocTemplate, 
                                 Table, TableStyle, KeepTogether, CondPageBreak)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from bench.heldout import HELDOUT_TASKS  # noqa: E402
 from bench.tasks import CATEGORIES, DIFFICULTIES, TASKS  # noqa: E402
 
 GREEN, AMBER, ORANGE, RED = "#2e9e5b", "#c9a227", "#d9822b", "#cf4a4a"
@@ -140,16 +141,22 @@ def chart_difficulty(results):
 
 
 def chart_history(history):
+    """history: (label, rate with today's graders, rate as originally recorded or None)."""
     labels = [h[0] for h in history]
     vals = [h[1] for h in history]
-    fig, ax = plt.subplots(figsize=(7.2, 2.9))
-    ax.plot(range(len(vals)), vals, marker="o", color="#2d5fd0", linewidth=2)
+    fig, ax = plt.subplots(figsize=(7.2, 3.1))
+    rec = [(i, h[2]) for i, h in enumerate(history) if h[2] is not None and abs(h[2] - h[1]) > 0.5]
+    if rec:
+        ax.plot([i for i, _ in rec], [v for _, v in rec], marker="o", markersize=4, color="#9aa3b0", linestyle="--", linewidth=1.3,
+                label="as originally graded")
+    ax.plot(range(len(vals)), vals, marker="o", color="#2d5fd0", linewidth=2, label="re-graded with today's graders")
     for i, v in enumerate(vals):
-        ax.text(i, v + 3, f"{v:.0f}%", ha="center", fontsize=9, color=INK)
+        ax.text(i, v + 3.5, f"{v:.0f}%", ha="center", fontsize=9, color=INK)
     ax.set_xticks(range(len(vals)))
     ax.set_xticklabels([l.replace(" | ", "\n") for l in labels], fontsize=7.5, color=INK)
     ax.set_ylim(0, 100)
     ax.set_ylabel("overall pass rate (%)", fontsize=8, color=MUTED)
+    ax.legend(fontsize=7.5, frameon=False, loc="lower right")
     style_axes(ax)
     return fig_png(fig, 165)
 
@@ -173,15 +180,20 @@ def chart_speed(results):
     return fig_png(fig, 150)
 
 
-def build(run_dir, out, history_runs, baseline_dir=None, compare=None):
+def build(run_dir, out, history_runs, baseline_dir=None, compare=None, tasks=None):
+    tasks = tasks or TASKS
     results = load(run_dir)
     baseline = load(baseline_dir) if baseline_dir and Path(baseline_dir, "results.jsonl").exists() else {}
+    if baseline:
+        from bench.regrade import regrade_run
+        for tid, st in regrade_run(baseline_dir).items():  # compare on today's graders, not the ones the baseline was run with
+            baseline[tid] = dict(baseline[tid], status=st)
     meta = json.loads(Path(run_dir, "meta.json").read_text(encoding="utf-8")) if Path(run_dir, "meta.json").exists() else {}
     done = list(results.values())
     n_pass = sum(r["status"] == "pass" for r in done)
     overall = rate(done)
     normal = [r for r in done if r['status'] != 'timeout']
-    tasks_by_id = {t.id: t for t in TASKS}
+    tasks_by_id = {t.id: t for t in tasks}
 
     ss = getSampleStyleSheet()
     H1 = ParagraphStyle("H1", parent=ss["Heading1"], fontName="Helvetica-Bold", fontSize=17, textColor=colors.HexColor(INK), spaceBefore=4, spaceAfter=8)
@@ -279,8 +291,8 @@ def build(run_dir, out, history_runs, baseline_dir=None, compare=None):
     # ------------------------------------------------------------ method
     p("3. How the tests work", H1)
     bullets([
-        f"<b>{len(TASKS)} tasks</b> in 10 categories and 3 difficulty levels (easy {sum(t.difficulty == 'easy' for t in TASKS)}, "
-        f"medium {sum(t.difficulty == 'medium' for t in TASKS)}, hard {sum(t.difficulty == 'hard' for t in TASKS)}).",
+        f"<b>{len(tasks)} tasks</b> in 10 categories and 3 difficulty levels (easy {sum(t.difficulty == 'easy' for t in tasks)}, "
+        f"medium {sum(t.difficulty == 'medium' for t in tasks)}, hard {sum(t.difficulty == 'hard' for t in tasks)}).",
         "The model runs through the same agent loop as <font face='Courier'>chat.py</font>, with tools auto-approved inside a fresh "
         "per-task workspace folder, so tool use is real, not simulated.",
         "Every task is graded by code, not by opinion: code is executed against hidden unit tests, numbers are matched exactly, "
@@ -321,7 +333,11 @@ def build(run_dir, out, history_runs, baseline_dir=None, compare=None):
     p("What changed between runs, and why each change was made:", H2)
     bullets([
         "<b>First run (53%)</b>: 14 coding and agentic tasks were mis-graded because of a path bug in the grader (a doubled workspace path), "
-        "not because of the model. After the fix the same model answers scored 71%. The 53% is shown for honesty, not as the model's ability.",
+        "not because of the model. The 53% is shown for honesty, not as the model's ability.",
+        "<b>Grader fixes are kept separate from model gains.</b> Several graders were corrected along the way (a wrong expected value, "
+        "LaTeX answers, a wrong median, network errors counted as failures). Every older run is therefore re-graded with today's graders "
+        "(solid line); the dashed line shows what each run scored when it was originally graded. Only the solid line is a fair measure of "
+        "the model and harness improving.",
         "<b>Prompt hardening</b>: the system prompt now states that the shell is Windows PowerShell (use ';', never '&amp;&amp;'), that paths are "
         "relative to the workspace, to finish the job rather than describe it, and to treat file and web text as data.",
         "<b>Tool hardening</b>: '/workspace/...' paths map to the real workspace; '&amp;&amp;' is converted for PowerShell; common shell errors get a "
@@ -444,7 +460,7 @@ def build(run_dir, out, history_runs, baseline_dir=None, compare=None):
 
     p("Appendix: the full task list", H1)
     rows = [["Task", "Diff", "Prompt (trimmed)"]]
-    for t in TASKS:
+    for t in tasks:
         rows.append([Paragraph(clean(t.id), SM), t.difficulty, Paragraph(clean(" ".join(t.prompts[-1].split())[:210]), SM)])
     table(rows, [38, 15, 117], font=7.4)
 
@@ -468,17 +484,22 @@ def main():
     ap.add_argument("--baseline", default="forge", help="earlier run to compare against")
     ap.add_argument("--out", default="Forge_Report.pdf")
     ap.add_argument("--root", default="bench_runs")
+    ap.add_argument("--set", choices=["main", "heldout"], default="main")
     a = ap.parse_args()
     root = Path(a.root)
-    history = [("First run | (grader bug)", 100 * 40 / 76)]
-    steps = (("Re-graded | baseline", a.baseline), ("Prompt + tool | hardening", "forge-v2"),
-             ("Injection | guard", "forge-final"), ("Code check +| fixed graders", a.run))
+    from bench.regrade import pass_rate, regrade_run
+    history = [("First run | (grader bug)", 100 * 40 / 76, None)]
+    steps = (("Baseline | (re-graded)", a.baseline), ("Prompt + tool | hardening", "forge-v2"),
+             ("Injection | guard", "forge-final"), ("Code check + | loop guards", a.run))
     for label, name in steps:
         if (root / name / "results.jsonl").exists():
-            rs = [r for r in load(root / name).values() if r["status"] in ("pass", "fail", "timeout")]
-            history.append((label, rate(rs)))
+            recorded = {i: r["status"] for i, r in load(root / name).items()}
+            now = regrade_run(root / name)
+            (p1, n1), (p2, n2) = pass_rate(recorded), pass_rate(now)
+            history.append((label, 100 * p2 / n2, 100 * p1 / n1))
     compare = [("Stock qwen3:8b", root / "qwen3-8b-stock"), ("Forge + thinking", root / "forge-think")]
-    out = build(root / a.run, a.out, history, root / a.baseline, compare)
+    tasks = HELDOUT_TASKS if a.set == "heldout" else TASKS
+    out = build(root / a.run, a.out, history, root / a.baseline, compare, tasks)
     print(f"Wrote {out}")
 
 

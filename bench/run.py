@@ -28,6 +28,7 @@ from assistant.agent import Agent  # noqa: E402
 from assistant.router import make_llm  # noqa: E402
 from assistant.tools import Toolbox  # noqa: E402
 from bench import report  # noqa: E402
+from bench.heldout import HELDOUT_TASKS  # noqa: E402
 from bench.tasks import TASKS  # noqa: E402
 
 DONE_STATUSES = {"pass", "fail", "timeout"}  # "error" (infrastructure) is retried on the next run
@@ -76,7 +77,8 @@ def select(tasks, only):
     if not only:
         return tasks
     wanted = {w.strip().lower() for w in only.split(",") if w.strip()}
-    return [t for t in tasks if t.id.lower() in wanted or t.category in wanted or t.difficulty in wanted]
+    return [t for t in tasks if t.id.lower() in wanted or t.category in wanted or t.difficulty in wanted
+            or any(tag in wanted for tag in t.tags)]
 
 
 def attempt(task, args, llm, run_dir):
@@ -177,6 +179,8 @@ def main():
     p.add_argument("--model", default="forge")
     p.add_argument("--run", default=None, help="run name (default: the model name)")
     p.add_argument("--out", default="bench_runs")
+    p.add_argument("--set", choices=["main", "heldout", "all"], default="main",
+                   help="main: the 76 tuned-on tasks. heldout: 34 tasks never tuned on (see bench/heldout.py). all: both")
     p.add_argument("--only", default="", help="comma list of task ids, categories or difficulties")
     p.add_argument("--temperature", type=float, default=0.2)
     p.add_argument("--mode", choices=["local", "auto", "remote"], default="local")
@@ -206,10 +210,11 @@ def main():
                                          "started": time.strftime("%Y-%m-%d %H:%M:%S")}, indent=1), encoding="utf-8")
 
     if args.report_only:
-        print(report.build(run_dir, TASKS))
+        print(report.build(run_dir, pool))
         return
 
-    tasks = select(TASKS, args.only)
+    pool = {"main": TASKS, "heldout": HELDOUT_TASKS, "all": TASKS + HELDOUT_TASKS}[args.set]
+    tasks = select(pool, args.only)
     if not tasks:
         sys.exit("No tasks match --only.")
     results = load_results(results_path)
@@ -246,11 +251,11 @@ def main():
             append_result(results_path, rec)
             print(f"{rec['status'].upper()}  ({rec['seconds']}s, {rec['tps']} tok/s)  {rec['note']}", flush=True)
             if i % 5 == 0:
-                report.build(run_dir, TASKS)  # keep a fresh partial report on disk
+                report.build(run_dir, pool)  # keep a fresh partial report on disk
     except KeyboardInterrupt:
         print("\nInterrupted. Finished tasks are saved; rerun the same command to continue.")
     finally:
-        out = report.build(run_dir, TASKS)
+        out = report.build(run_dir, pool)
         print(f"\nElapsed this session: {(time.time() - t0) / 60:.1f} min.\n{out}")
 
 

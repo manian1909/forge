@@ -15,6 +15,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from bench.heldout import HELDOUT_TASKS  # noqa: E402
 from bench.tasks import TASKS  # noqa: E402
 
 KEEP = ("timeout", "error")
@@ -66,7 +67,7 @@ def _context(task, messages, ws):
 def regrade_run(run_dir):
     """{task id: status} under the current graders. Timeouts and errors keep their recorded status."""
     run_dir = Path(run_dir)
-    by_id = {t.id: t for t in TASKS}
+    by_id = {t.id: t for t in TASKS + HELDOUT_TASKS}
     out = {}
     for tid, rec in _load_results(run_dir).items():
         task = by_id.get(tid)
