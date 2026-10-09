@@ -88,7 +88,8 @@ def attempt(task, args, llm, run_dir):
     if task.setup:
         task.setup(ws)
 
-    agent = Agent(llm, Toolbox(ws, harden=not args.plain), confirm=None, max_steps=task.steps, nudge=not args.plain)
+    agent = Agent(llm, Toolbox(ws, harden=not args.plain), confirm=None, max_steps=task.steps,
+                  nudge=not args.plain, guard=not args.plain)
     calls, stats_all, answers = [], [], []
     deadline = time.time() + args.task_timeout
 
