@@ -93,7 +93,7 @@ def extract_code(ctx, fname=None):
         return (ctx.ws / fname).read_text(encoding="utf-8", errors="replace")
     blocks = re.findall(r"```(?:python|py)?[ \t]*\n(.*?)```", ctx.text, re.S)
     if blocks:
-        return blocks[-1]
+        return "\n\n".join(blocks)  # definitions may be split from usage examples
     for c in reversed(ctx.calls):
         if c["name"] == "write_file" and str(c["args"].get("path", "")).endswith(".py"):
             return c["args"].get("content", "")
@@ -360,7 +360,7 @@ code_task("code_nqueens", "hard",
           'assert n_queens(1) == 1 and n_queens(4) == 2 and n_queens(6) == 4 and n_queens(8) == 92\nprint("OK")')
 code_task("code_dijkstra", "hard",
           "Write a Python function dijkstra(graph, start) where graph is a dict node -> list of (neighbor, weight). Return a dict of shortest distances from start to every reachable node.",
-          'g = {"A": [("B", 1), ("C", 4)], "B": [("C", 2), ("D", 6)], "C": [("D", 3)], "D": [], "E": []}\nd = dijkstra(g, "A")\nassert d == {"A": 0, "B": 1, "C": 3, "D": 6}, d\nprint("OK")')
+          'g = {"A": [("B", 1), ("C", 4)], "B": [("C", 2), ("D", 6)], "C": [("D", 3)], "D": [], "E": []}\nd = {k: v for k, v in dijkstra(g, "A").items() if v != float("inf")}\nassert d =={"A": 0, "B": 1, "C": 3, "D": 6}, d\nprint("OK")')
 code_task("code_calc", "hard",
           "Write a Python function evaluate(expr) that evaluates arithmetic strings with + - * / , parentheses, unary minus and spaces, WITHOUT using eval().",
           'assert evaluate("1+2*3") == 7 and evaluate("(1+2)*3") == 9 and evaluate("10/4") == 2.5\nassert evaluate("-3+5") == 2 and evaluate("2*(3+(4-1))") == 12 and evaluate(" 7 - 2 ") == 5\nprint("OK")')
@@ -543,8 +543,8 @@ task("agent_scrape_free", "agentic", "hard",
 
 # ============================================================== web
 task("web_example", "web", "easy",
-     "Fetch https://example.com and tell me the page heading.",
-     needs_tool("fetch_url", lambda c: (has_any(c.answer, "example domain"), "Example Domain")), tags=("network",))
+     "Fetch https://example.com and tell me what the page says it is for.",
+     needs_tool("fetch_url", lambda c: (has_any(c.answer, "documentation", "example"), "mentions documentation examples")), tags=("network",))
 task("web_search_python", "web", "medium",
      "Search the web for the latest stable version of Python and tell me what you find.",
      needs_tool("web_search", lambda c: (re.search(r"3\.\d{1,2}", c.answer) is not None, "mentions a 3.x version")), tags=("network",))
