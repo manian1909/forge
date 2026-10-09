@@ -9,6 +9,7 @@ History table: pass ``--history "label=run_dir,label=run_dir"`` to compare earli
 import argparse
 import html
 import io
+import statistics
 import json
 import sys
 import time
@@ -37,7 +38,7 @@ CAPABILITY_TEXT = {
     "instruction": "Follows format rules (numbered lists, JSON-only output, lowercase, one-sentence summaries). Exact counts are its weak point.",
     "reasoning": "Solves word problems, probability and logic puzzles; arithmetic slips appear on multi-step percentage problems.",
     "python_tool": "Writes and runs Python through the run_python tool to get exact results (primes, hashes, dates, big numbers).",
-    "coding": "Writes correct, unit-tested Python functions from a description, including LRU cache, N-queens, Dijkstra and a calculator parser.",
+    "coding": "Writes working Python functions from a description and runs them to check. Simple and medium problems are reliable; hard algorithms (parsers, caches, graph search) are hit-or-miss.",
     "files": "Creates, reads, edits and searches files in its workspace, and fixes failing code by running the tests.",
     "shell": "Runs Windows PowerShell commands to inspect and change the file system.",
     "agentic": "Chains several tool calls (write code, run it, read the error, fix it) to finish a task. Longer pipelines are still unreliable.",
@@ -154,18 +155,20 @@ def chart_history(history):
 
 
 def chart_speed(results):
+    """Median seconds per task. Timeouts are left out: they are usually a stalled machine, not the model's speed."""
+    import statistics
     cats = list(CATEGORIES)[::-1]
     secs = []
     for c in cats:
-        rs = [r["seconds"] for r in results.values() if r["category"] == c]
-        secs.append(sum(rs) / len(rs) if rs else 0)
+        rs = [r["seconds"] for r in results.values() if r["category"] == c and r["status"] != "timeout"]
+        secs.append(statistics.median(rs) if rs else 0)
     fig, ax = plt.subplots(figsize=(7.2, 3.2))
     ax.barh(range(len(cats)), secs, color="#5b7fcf", height=0.6)
     for i, v in enumerate(secs):
         ax.text(v + 0.6, i, f"{v:.0f}s", va="center", fontsize=8, color=INK)
     ax.set_yticks(range(len(cats)))
     ax.set_yticklabels([CATEGORIES[c] for c in cats], fontsize=8, color=INK)
-    ax.set_xlabel("average seconds per task", fontsize=8, color=MUTED)
+    ax.set_xlabel("median seconds per task (timeouts excluded)", fontsize=8, color=MUTED)
     style_axes(ax)
     return fig_png(fig, 150)
 
@@ -177,6 +180,7 @@ def build(run_dir, out, history_runs, baseline_dir=None, compare=None):
     done = list(results.values())
     n_pass = sum(r["status"] == "pass" for r in done)
     overall = rate(done)
+    normal = [r for r in done if r['status'] != 'timeout']
     tasks_by_id = {t.id: t for t in TASKS}
 
     ss = getSampleStyleSheet()
@@ -230,8 +234,9 @@ def build(run_dir, out, history_runs, baseline_dir=None, compare=None):
         f"Strongest areas: {', '.join(CATEGORIES[c].split(' (')[0] + f' ({rate(by_c[c]):.0f}%)' for c in ranked[:3])}.",
         f"Weakest areas: {', '.join(CATEGORIES[c].split(' (')[0] + f' ({rate(by_c[c]):.0f}%)' for c in ranked[-3:])}.",
         f"Speed on the laptop (RTX 3050, 4 GB): about <b>{sum(tps) / max(len(tps), 1):.1f} tokens/s</b>; "
-        f"average <b>{sum(r['seconds'] for r in done) / max(len(done), 1):.0f} s</b> per task; "
-        f"full {len(done)}-task suite in {sum(r['seconds'] for r in done) / 60:.0f} minutes.",
+        f"median <b>{statistics.median(r['seconds'] for r in normal):.0f} s</b> per task; "
+        f"the {len(normal)} tasks that finished took {sum(r['seconds'] for r in normal) / 60:.0f} minutes in total"
+        + (f" ({len(done) - len(normal)} timed-out task(s) excluded: they usually mean the machine stalled, not that the model was slow)." if len(done) > len(normal) else "."),
         "No retraining was needed for the gains below: they came from prompt, tool and agent-loop changes.",
     ])
     story.append(PageBreak())
@@ -363,6 +368,13 @@ def build(run_dir, out, history_runs, baseline_dir=None, compare=None):
             same = [(label, [r for i, r in res.items() if i in ids and r["status"] in ("pass", "fail", "timeout")]) for label, res in cols]
             p("On the tasks all runs share: " + "; ".join(f"{clean(l)} {rate(rs):.0f}% ({sum(r['status'] == 'pass' for r in rs)}/{len(rs)})"
                                                          for l, rs in same) + ".", B)
+        if loaded and loaded[0][0].startswith("Stock"):
+            sr = [r for r in loaded[0][1].values() if r["status"] in ("pass", "fail", "timeout")]
+            fr = [r for r in results.values() if r["status"] in ("pass", "fail", "timeout")]
+            p(f"<b>Reading this honestly:</b> the stock model scored {rate(sr):.0f}% against Forge's {rate(fr):.0f}%. The confidence "
+              "intervals overlap, so this suite does not show that the fine-tune is more capable; it shows it is not clearly worse. "
+              "What the fine-tune was built for (owning the weights, a built-in persona, a tool-call style learned from your own data) is "
+              "mostly not measured here, and both runs were given the same Forge system prompt, so identity is not a fair test either.", B)
         p("A difference of a few tasks between two columns is within noise. Differences of 15+ points are real.", MUT)
 
     # ------------------------------------------------------------ performance
@@ -372,7 +384,7 @@ def build(run_dir, out, history_runs, baseline_dir=None, compare=None):
     err = sum(1 for r in done for c in r["tool_calls"] if c["result"].startswith("Error"))
     total_tok = sum(r["tokens"] for r in done)
     bullets([
-        f"Average generation speed {sum(tps) / max(len(tps), 1):.1f} tok/s; {total_tok:,} tokens generated over {sum(r['seconds'] for r in done) / 60:.0f} minutes of compute.",
+        f"Average generation speed {sum(tps) / max(len(tps), 1):.1f} tok/s; {total_tok:,} tokens generated over {sum(r['seconds'] for r in normal) / 60:.0f} minutes of compute.",
         f"Tool calls made: {sum(calls.values())} ({err} returned errors). " + ", ".join(f"{k} x{v}" for k, v in calls.most_common()) + ".",
         "Speed is limited by the 4 GB GPU: about two thirds of the model runs on the CPU. A rented cloud GPU (see section 9) puts every layer on the GPU.",
     ])
@@ -460,7 +472,7 @@ def main():
     root = Path(a.root)
     history = [("First run | (grader bug)", 100 * 40 / 76)]
     steps = (("Re-graded | baseline", a.baseline), ("Prompt + tool | hardening", "forge-v2"),
-             ("+ injection | guard", "forge-final"), ("+ code self-check,| fixed graders", a.run))
+             ("Injection | guard", "forge-final"), ("Code check +| fixed graders", a.run))
     for label, name in steps:
         if (root / name / "results.jsonl").exists():
             rs = [r for r in load(root / name).values() if r["status"] in ("pass", "fail", "timeout")]

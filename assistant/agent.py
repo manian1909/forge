@@ -150,7 +150,9 @@ class Agent:
         nudges = faith_nudges = verify_rounds = 0
         tested_ok, verified, pending = False, set(), None
         user_wants_action = bool(ACTION_RE.search(user_text))
-        for _ in range(self.max_steps):
+        steps, budget = 0, self.max_steps   # checks add to the budget so they never starve the real work
+        while steps < budget:
+            steps += 1
             message, stats = self.llm.chat(self.messages, tools=TOOL_SCHEMAS, on_token=on_token)
             all_stats.append(stats)
             self.messages.append(message)
@@ -166,6 +168,7 @@ class Agent:
                 note = self._nudge_for(text, used_tools, nudges)
                 if note is not None:
                     nudges += 1
+                    budget += 1
                     self.messages.append({"role": "user", "content": note})
                     continue
                 note = self._unfaithful(text, last_run) if faith_nudges < 1 else None
@@ -180,6 +183,7 @@ class Agent:
                     outcome = self._run_generated_code(code, on_verify)
                     if outcome is not None:
                         verify_rounds += 1
+                        budget += 3  # one reply to the note, plus room for a tool call and a final answer
                         kind, result = outcome
                         template = {"failed": VERIFY_FAILED, "untested": VERIFY_UNTESTED, "output": VERIFY_OUTPUT}[kind]
                         if kind == "output":

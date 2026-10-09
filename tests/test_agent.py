@@ -52,6 +52,13 @@ def test_failing_code_is_sent_back_and_fixed():
     assert out.endswith(VERIFIED_FOOTER) and "def f(x)" in out
 
 
+def test_code_checks_do_not_use_up_the_task_step_budget():
+    # max_steps=2 would normally end after two model replies; the check rounds get their own room
+    llm = Script(say("```python\ndef f(:\n    pass\n```"), say("```python\ndef f(x):\n    return x\nprint(f(2))\n```"), say("VERIFIED"))
+    out, _ = Agent(llm, Toolbox(tempfile.mkdtemp()), confirm=None, max_steps=2).run("write f")
+    assert out.endswith(VERIFIED_FOOTER)
+
+
 def test_correct_output_is_confirmed_and_history_stays_clean():
     llm = Script(say("```python\nprint(6*7)\n```"), say("VERIFIED"))
     a = agent(llm)
