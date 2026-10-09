@@ -86,6 +86,17 @@ cells. When it finishes, download the `.gguf` from the Output panel.
 
 ### 3. Run locally
 
+Put the downloaded `.gguf` in `models\` as `forge-8b-Q4_K_M.gguf`. The
+quickest way to run it is with Ollama as the engine (the weights are still
+your own file):
+
+```powershell
+ollama create forge -f Modelfile                                   # once
+python chat.py --url http://127.0.0.1:11434/v1 --model forge --stats
+```
+
+Or with llama.cpp's server, which lets you tune GPU offload and the KV cache:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\setup_llamacpp.ps1   # once
 # put the downloaded .gguf in models\
