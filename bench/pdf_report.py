@@ -68,6 +68,16 @@ def rate(rs):
     return 100.0 * sum(r["status"] == "pass" for r in rs) / len(rs) if rs else 0.0
 
 
+def wilson(passed, n, z=1.96):
+    """95% confidence interval for a pass rate, in percent."""
+    if n == 0:
+        return 0.0, 0.0
+    p = passed / n
+    centre = (p + z * z / (2 * n)) / (1 + z * z / n)
+    half = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / (1 + z * z / n)
+    return 100 * max(0.0, centre - half), 100 * min(1.0, centre + half)
+
+
 def band(r):
     return GREEN if r >= 80 else AMBER if r >= 55 else ORANGE if r >= 30 else RED
 
@@ -160,7 +170,7 @@ def chart_speed(results):
     return fig_png(fig, 150)
 
 
-def build(run_dir, out, history_runs, baseline_dir=None):
+def build(run_dir, out, history_runs, baseline_dir=None, compare=None):
     results = load(run_dir)
     baseline = load(baseline_dir) if baseline_dir and Path(baseline_dir, "results.jsonl").exists() else {}
     meta = json.loads(Path(run_dir, "meta.json").read_text(encoding="utf-8")) if Path(run_dir, "meta.json").exists() else {}
@@ -205,7 +215,9 @@ def build(run_dir, out, history_runs, baseline_dir=None):
     story.append(Spacer(1, 8 * mm))
     big = ParagraphStyle("big", parent=B, fontSize=44, leading=48, textColor=colors.HexColor(band(overall)), fontName="Helvetica-Bold")
     story.append(Paragraph(f"{overall:.0f}%", big))
-    p(f"overall pass rate: <b>{n_pass} of {len(done)}</b> automatically graded tasks passed", B)
+    lo, hi = wilson(n_pass, len(done))
+    p(f"overall pass rate: <b>{n_pass} of {len(done)}</b> automatically graded tasks passed "
+      f"(95% confidence interval {lo:.0f}% to {hi:.0f}%)", B)
     story.append(Spacer(1, 6 * mm))
     by_d = {d: [r for r in done if r["difficulty"] == d] for d in DIFFICULTIES}
     by_c = {c: [r for r in done if r["category"] == c] for c in CATEGORIES}
@@ -238,7 +250,8 @@ def build(run_dir, out, history_runs, baseline_dir=None):
                           "tool-use conversations (380 with tool calls), 40 identity rows"],
         ["Tools it can use", "run_python, run_shell (PowerShell), read_file, write_file, list_dir, web_search, fetch_url"],
         ["Context window", "8,192 tokens as configured (the base model supports 40,960); about 5-6 k tokens usable after the system prompt and tool schemas"],
-        ["Laptop speed", "about 8.7 tok/s generation, about 30 tok/s prompt processing; roughly 36% of layers on the 4 GB GPU, 64% on CPU"],
+        ["Laptop speed", "about 7 to 9 tok/s generation (8.7 in the first smoke test, about 7 averaged over the benchmark, which has longer prompts "
+                        "and tool results), about 30 tok/s prompt processing; roughly 36% of layers on the 4 GB GPU, 64% on CPU"],
         ["Hardware", "i5-12450H, 16 GB RAM, RTX 3050 Laptop 4 GB VRAM, Windows 11"],
         ["Ownership", "Weights are the owner's own fine-tune; the stock Ollama qwen3:8b was used only as a data teacher"],
     ]), [38, 132], font=8.2)
@@ -270,7 +283,12 @@ def build(run_dir, out, history_runs, baseline_dir=None):
         f"Temperature {meta.get('temperature', 0.2)}; each task is run once. Single-sample results carry noise, so differences of one or two "
         "tasks between runs are not meaningful.",
         "Runs are crash-safe: each result is flushed to disk as it finishes and an interrupted run resumes where it stopped.",
-        "Network tasks (web search/fetch) depend on the internet connection at run time.",
+        "Network tasks (web search/fetch) depend on the internet connection at run time. A task that fails only because the "
+        "network was down is reported as an error and not counted against the model.",
+        "<b>Limits of this benchmark:</b> the tasks are self-written and small (n=76), so a rate carries roughly +/-9 points of "
+        "uncertainty overall and more per category (categories have only 2 to 13 tasks). The prompt and tool fixes were designed "
+        "after looking at failures on these same tasks, so the gains from them are partly tuned to this set. A fair comparison needs a "
+        "held-out set, more samples per task, and public benchmarks (HumanEval+, GSM8K, IFEval, BFCL).",
     ])
     p("4. Results", H1)
     story.append(Table([[chart_category(results), chart_difficulty(results)]], colWidths=[112 * mm, 58 * mm],
@@ -317,6 +335,35 @@ def build(run_dir, out, history_runs, baseline_dir=None):
         p(f"Fixed ({len(fixed)}): {clean(', '.join(fixed) or 'none')}", B)
         p(f"Newly failing ({len(broke)}): {clean(', '.join(broke) or 'none')}. With one sample per task at temperature 0.2, "
           "a few of these swing either way from run to run.", B)
+
+    # ------------------------------------------------------------ comparison with other runs
+    if compare:
+        p("Comparison with the stock model and thinking mode", H1)
+        p("Same 76-task harness, same prompt, same tools. 'Stock' is the unmodified Ollama qwen3:8b. 'Thinking' lets Qwen3 reason "
+          "before answering (much slower) and was run only on the reasoning tasks.", MUT)
+        loaded = [(label, load(path)) for label, path in compare if Path(path, "results.jsonl").exists()]
+        cols = [("Forge (this report)", results)] + loaded
+        rows = [["Category"] + [c[0] for c in cols]]
+        for c, label in CATEGORIES.items():
+            row = [Paragraph(clean(label), SM)]
+            for _, res in cols:
+                rs = [r for r in res.values() if r["category"] == c and r["status"] in ("pass", "fail", "timeout")]
+                row.append(f"{rate(rs):.0f}% ({sum(r['status'] == 'pass' for r in rs)}/{len(rs)})" if rs else "-")
+            rows.append(row)
+        overall_row = [Paragraph("<b>Overall</b>", SM)]
+        for _, res in cols:
+            rs = [r for r in res.values() if r["status"] in ("pass", "fail", "timeout")]
+            lo2, hi2 = wilson(sum(r["status"] == "pass" for r in rs), len(rs))
+            overall_row.append(f"{rate(rs):.0f}% ({sum(r['status'] == 'pass' for r in rs)}/{len(rs)}), CI {lo2:.0f}-{hi2:.0f}%")
+        rows.append(overall_row)
+        w = [60] + [110 / len(cols)] * len(cols)
+        table(rows, w, font=7.6)
+        ids = {i for _, res in loaded[1:] for i in res} if len(loaded) > 1 else set()
+        if ids:
+            same = [(label, [r for i, r in res.items() if i in ids and r["status"] in ("pass", "fail", "timeout")]) for label, res in cols]
+            p("On the tasks all runs share: " + "; ".join(f"{clean(l)} {rate(rs):.0f}% ({sum(r['status'] == 'pass' for r in rs)}/{len(rs)})"
+                                                         for l, rs in same) + ".", B)
+        p("A difference of a few tasks between two columns is within noise. Differences of 15+ points are real.", MUT)
 
     # ------------------------------------------------------------ performance
     p("6. Speed and tool use", H1)
@@ -405,18 +452,21 @@ def build(run_dir, out, history_runs, baseline_dir=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--run", default="forge-final")
+    ap.add_argument("--run", default="forge-v4")
     ap.add_argument("--baseline", default="forge", help="earlier run to compare against")
     ap.add_argument("--out", default="Forge_Report.pdf")
     ap.add_argument("--root", default="bench_runs")
     a = ap.parse_args()
     root = Path(a.root)
     history = [("First run | (grader bug)", 100 * 40 / 76)]
-    for label, name in (("Re-graded | baseline", a.baseline), ("Prompt + tool | hardening", "forge-v2"), ("Final | (injection guard)", a.run)):
-        path = root / name / "results.jsonl"
-        if path.exists():
-            history.append((label, rate(list(load(root / name).values()))))
-    out = build(root / a.run, a.out, history, root / a.baseline)
+    steps = (("Re-graded | baseline", a.baseline), ("Prompt + tool | hardening", "forge-v2"),
+             ("+ injection | guard", "forge-final"), ("+ code self-check,| fixed graders", a.run))
+    for label, name in steps:
+        if (root / name / "results.jsonl").exists():
+            rs = [r for r in load(root / name).values() if r["status"] in ("pass", "fail", "timeout")]
+            history.append((label, rate(rs)))
+    compare = [("Stock qwen3:8b", root / "qwen3-8b-stock"), ("Forge + thinking", root / "forge-think")]
+    out = build(root / a.run, a.out, history, root / a.baseline, compare)
     print(f"Wrote {out}")
 
 
