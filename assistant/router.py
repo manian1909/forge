@@ -59,6 +59,7 @@ def load_remotes(path=DEFAULT_PROVIDERS, temperature=0.3):
     if not p.exists():
         return []
     load_env_file()
+    load_env_file(Path(__file__).resolve().parent.parent / ".env")
     backends = []
     for entry in json.loads(p.read_text(encoding="utf-8")):
         key = os.environ.get(entry.get("api_key_env", ""), "")
