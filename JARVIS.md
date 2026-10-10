@@ -66,9 +66,9 @@ with only 200 MB spare. If you ever see CUDA out-of-memory errors, lower the num
 Type `/speak` and jarvis reads each answer aloud. Code blocks are skipped ("the code is on your screen"), links and
 markdown symbols are dropped, and speech starts after the first sentence is ready. A new question or Ctrl+C stops it.
 
-- `/speak` toggles it (`/speak on`, `/speak off`, `/speak test`); it is remembered for next time. `jarvis --speak` starts with it on.
+- `/speak` toggles it (`/speak on`, `/speak off`, `/speak test`); `/nospeak` turns it off; `/mute` stops talking right now but keeps speak mode on; it is remembered for next time. `jarvis --speak` starts with it on.
 - `/voice` lists the voices, `/voice 3` picks number 3 and plays a sample, `/voice rate faster|slower|normal|+10%` changes the speed.
 - Two engines, switch with `/voice engine edge` or `/voice engine windows`:
   - **edge**: natural neural voices (US, UK, India, Australia; any name from `edge-tts --list-voices` works, e.g. `/voice en-IN-NeerjaNeural`).
-    Needs `pip install edge-tts` and internet, and the text of each answer is sent to Microsoft's service to make the audio.
+    Needs the `edge-tts` package (`/speak` installs it for you the first time) and internet, and the text of each answer is sent to Microsoft's service to make the audio.
   - **windows**: the voices built into Windows. Fully offline, more robotic.

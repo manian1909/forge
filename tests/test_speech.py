@@ -126,3 +126,32 @@ def test_voice_list_pick_and_rate(tmp_path, monkeypatch):
     assert tui.load_config()["voice_rate"] == "+15%"
     ui.command("/voice nobody")
     assert "no voice called" in console.file.getvalue()
+
+
+def test_nospeak_and_mute(tmp_path, monkeypatch):
+    ui, console = make_ui(tmp_path, monkeypatch)
+    monkeypatch.setattr(tui.speech.EdgeEngine, "available", staticmethod(lambda: True))
+    ui.command("/speak on")
+    assert ui.speaker.enabled
+    ui.command("/mute")
+    assert ui.speaker.enabled and "quiet" in console.file.getvalue()
+    ui.command("/nospeak")
+    assert not ui.speaker.enabled and tui.load_config()["speak"] is False
+
+
+def test_speak_installs_edge_tts_when_missing(tmp_path, monkeypatch):
+    ui, console = make_ui(tmp_path, monkeypatch)
+    state = {"installed": False}
+    monkeypatch.setattr(tui.speech.EdgeEngine, "available", staticmethod(lambda: state["installed"]))
+
+    class Done:
+        returncode = 0
+
+    def fake_run(cmd, **kw):
+        assert cmd[-2:] == ["install", "edge-tts"] or cmd[-1] == "edge-tts"
+        state["installed"] = True
+        return Done()
+
+    monkeypatch.setattr(tui.subprocess, "run", fake_run)
+    ui.command("/speak on")
+    assert state["installed"] and "edge-tts installed" in console.file.getvalue()

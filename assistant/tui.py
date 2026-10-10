@@ -12,6 +12,7 @@ searching are automatic. /auto switches to fully autonomous.
 
 import argparse
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -24,7 +25,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
-from . import serve
+from . import serve, speech
 from .agent import VERIFIED_FOOTER, Agent
 from .prompts import ASSISTANT_NAME
 from .router import RoutedLLM, make_llm
@@ -43,6 +44,7 @@ HELP = """[bold]Commands[/bold]
   [cyan]/model <name>[/cyan]    switch the Ollama model for this session
   [cyan]/remote[/cyan] [cyan]/local[/cyan] [cyan]/backend[/cyan]   force remote APIs, release, show router status (needs providers.json)
   [cyan]/speak[/cyan] [on|off|test]   read answers aloud (one way: it talks, it does not listen)
+  [cyan]/nospeak[/cyan]         turn speak mode off   [cyan]/mute[/cyan] stop talking right now (mode stays on)
   [cyan]/voice[/cyan]           list voices; [cyan]/voice <number|name>[/cyan] choose; [cyan]/voice engine edge|windows[/cyan]; [cyan]/voice rate faster|slower|+10%[/cyan]
   [cyan]/stats[/cyan]           toggle the speed line after each answer
   [cyan]/tools[/cyan]           list what the model can do
@@ -284,6 +286,11 @@ class Jarvis:
                 c.print(f"[dim]current default: {load_config().get('mode', 'ask')}. Use /default ask or /default auto[/dim]")
         elif cmd == "/speak":
             self.speak_command(rest)
+        elif cmd == "/nospeak":
+            self.speak_command("off")
+        elif cmd == "/mute":
+            self.speaker.stop()
+            c.print("[dim]quiet (speak mode is still on; /nospeak turns it off)[/dim]")
         elif cmd == "/voice":
             self.voice_command(rest)
         elif cmd == "/stats":
@@ -332,6 +339,8 @@ class Jarvis:
         sp.enabled = {"on": True, "off": False}.get(rest, not sp.enabled)
         if not sp.enabled:
             sp.stop()
+        elif load_config().get("voice_engine", "edge") == "edge":
+            self.ensure_edge_tts()
         if sp.engine is None:
             c.print("[red]no voice engine is available on this computer[/red]")
             sp.enabled = False
@@ -345,6 +354,21 @@ class Jarvis:
                 c.print("[dim]  using the built-in Windows voice. For natural voices: pip install edge-tts, then /voice engine edge[/dim]")
         elif sp.engine is not None:
             c.print("[dim]speak mode off[/dim]")
+
+    def ensure_edge_tts(self):
+        """Natural voices need the edge-tts package: install it once if it is missing."""
+        sp = self.speaker
+        if speech.EdgeEngine.available():
+            if sp.engine_name != "edge" and load_config().get("voice_engine", "edge") == "edge":
+                sp.configure(engine="edge", voice="")
+            return
+        self.console.print("[dim]installing edge-tts for natural voices (one time)...[/dim]")
+        done = subprocess.run([sys.executable, "-m", "pip", "install", "-q", "edge-tts"], capture_output=True, text=True)
+        if done.returncode == 0 and speech.EdgeEngine.available():
+            sp.configure(engine="edge", voice="")
+            self.console.print("[dim]edge-tts installed.[/dim]")
+        else:
+            self.console.print("[yellow]could not install edge-tts[/yellow] [dim](no internet?). Using the built-in Windows voice.[/dim]")
 
     def voice_command(self, rest):
         c, sp = self.console, self.speaker
