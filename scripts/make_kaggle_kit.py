@@ -20,6 +20,7 @@ INCLUDE = [
     "assistant/agent.py",
     "data/build_dataset.py",
     "data/out/agentic.jsonl",
+    "data/out/verified.jsonl",
     "training/formatting.py",
     "training/finetune.py",
     "training/export.py",
@@ -33,6 +34,7 @@ def main():
     if missing:
         raise SystemExit(f"missing files: {missing}")
     n_agentic = sum(1 for line in open(ROOT / "data/out/agentic.jsonl", encoding="utf-8") if line.strip())
+    n_verified = sum(1 for line in open(ROOT / "data/out/verified.jsonl", encoding="utf-8") if line.strip())
 
     DIST.mkdir(exist_ok=True)
     target = DIST / "forge-kit.zip"
@@ -41,8 +43,8 @@ def main():
             z.write(ROOT / rel, f"forge-kit/{rel}")
         # empty package markers so `training` and `data` import cleanly
         z.writestr("forge-kit/training/__init__.py", "")
-        z.writestr("forge-kit/kit_info.json", json.dumps({"agentic_conversations": n_agentic}, indent=2))
-    print(f"wrote {target} ({target.stat().st_size / 1e6:.1f} MB, {n_agentic} agentic conversations)")
+        z.writestr("forge-kit/kit_info.json", json.dumps({"agentic_conversations": n_agentic, "verified_conversations": n_verified}, indent=2))
+    print(f"wrote {target} ({target.stat().st_size / 1e6:.1f} MB, {n_agentic} agentic + {n_verified} verified conversations)")
 
 
 if __name__ == "__main__":

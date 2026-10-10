@@ -122,6 +122,13 @@ def from_hermes(row):
     return {"messages": messages, "tools": tools}
 
 
+def with_current_prompt(messages):
+    """Generated conversations were made under older system prompts; train on the one used at runtime."""
+    if messages and messages[0]["role"] == "system":
+        return [{"role": "system", "content": SYSTEM_PROMPT}] + messages[1:]
+    return messages
+
+
 def identity_examples(owner, n=40, seed=0):
     rng = random.Random(seed)
     questions = [
@@ -159,6 +166,7 @@ def main():
     p.add_argument("--fc-single", type=int, default=1200)
     p.add_argument("--fc-multi", type=int, default=800)
     p.add_argument("--agentic-repeat", type=int, default=2, help="oversample our own tool data")
+    p.add_argument("--verified-repeat", type=int, default=3, help="oversample the code-checked data")
     p.add_argument("--owner", default="manian1909")
     p.add_argument("--val-frac", type=float, default=0.02)
     p.add_argument("--seed", type=int, default=0)
@@ -191,7 +199,17 @@ def main():
     if not agentic:
         print("  warning: no agentic data found; run data/generate_agentic.py first")
     for _ in range(a.agentic_repeat):
-        rows.extend({"messages": r["messages"], "tools": r["tools"]} for r in agentic)
+        rows.extend({"messages": with_current_prompt(r["messages"]), "tools": r["tools"]} for r in agentic)
+
+    # answers checked by code (data/generate_verified.py): tested code, exact instruction following, no refusals
+    verified_path = OUT / "verified.jsonl"
+    verified = []
+    if verified_path.exists():
+        with open(verified_path, encoding="utf-8") as f:
+            verified = [json.loads(line) for line in f if line.strip()]
+    print(f"{'verified':<12} {len(verified):>6} x{a.verified_repeat}")
+    for _ in range(a.verified_repeat):
+        rows.extend({"messages": with_current_prompt(r["messages"]), "tools": r["tools"]} for r in verified)
 
     ident = identity_examples(a.owner, seed=a.seed)
     print(f"{'identity':<12} {len(ident):>6}")
