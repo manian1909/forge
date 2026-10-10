@@ -17,7 +17,8 @@ from pathlib import Path
 
 from .llm import TurnTimeout
 from .prompts import SYSTEM_PROMPT
-from .tools import NEEDS_CONFIRMATION, TOOL_SCHEMAS
+from .tools import (DISPLAY_ONLY_MSG, FILE_VIA_SHELL_MSG, NEEDS_CONFIRMATION, TOOL_SCHEMAS, display_only_shell,
+                    file_via_shell)
 
 # "Let me run it:" with no tool call behind it means the model stopped one step early
 ANNOUNCE_RE = re.compile(r"\b(let me|let's|i'll|i will|i'm going to|i am going to|now i'll|next,? i'll)\b(?! know)", re.I)
@@ -38,6 +39,12 @@ def is_refusal(text):
 NUDGE_REFUSAL = ("(system note) Do not refuse. The user wants an answer. Give your best specific answer now (a number, a name, a "
                  "yes or no, or the actual content), say in a few words that it is a guess if it is one, and add a one-line warning "
                  "if the request is risky. Offering help with something else is not an answer.")
+NUDGE_SHOW_CODE = ("(system note) The user asked to see the code. Put the full final code in your reply now, in a code block, "
+                   "followed by the real output you got when you ran it.")
+CODE_SHOWN_RE = re.compile(r"```\w*\n(?:(?!```)[\s\S])*?(?:\bdef |\bclass |\bimport |\bfunction |#include|\bpublic |\bfunc |\bfn )")
+WANTS_CODE_RE = re.compile(r"\b(show|display|print|give|paste|send)\b[^.?!]{0,60}\b(code|script|program|function)\b|\bcode here\b", re.I)
+NUDGE_URL = ("(system note) The user gave you this address: {url}. You have not fetched it. Call fetch_url on it now and answer from "
+             "what it really returns. Never describe a page you have not fetched.")
 NUDGE_NO_PRINT = ("(system note) Your last run_python call printed nothing, so the figures in your answer did not come from "
                   "the tool. Re-run the code with print() around the result and report what it really prints.")
 NUDGE_MISMATCH = ("(system note) Your answer does not match what the last tool call returned:\n{output}\n"
@@ -208,6 +215,10 @@ class Agent:
         deadline = time.time() + self.max_seconds if self.max_seconds else None
         before = self.toolbox.snapshot() if self.faithful else None
         failed_runs = {}
+        urls = re.findall(r"https?://[^\s)>\"']+", user_text)
+        fetched = False
+        wrote_code = False
+        wants_code = bool(WANTS_CODE_RE.search(user_text))
         steps, budget = 0, self.max_steps   # checks add to the budget so they never starve the real work
         while steps < budget:
             steps += 1
@@ -242,6 +253,18 @@ class Agent:
                     if on_retry:
                         on_retry("that reply did not match what the tools did")
                     continue
+                if self.faithful and wants_code and wrote_code and not CODE_SHOWN_RE.search(text) and faith_nudges < 2:
+                    faith_nudges += 1
+                    self.messages.append({"role": "user", "content": NUDGE_SHOW_CODE})
+                    if on_retry:
+                        on_retry("you asked to see the code and the reply did not show it")
+                    continue
+                if self.faithful and urls and not fetched and faith_nudges < 2 and not text.startswith("(stopped"):
+                    faith_nudges += 1
+                    self.messages.append({"role": "user", "content": NUDGE_URL.format(url=urls[0])})
+                    if on_retry:
+                        on_retry("you gave a URL and it was not fetched")
+                    continue
                 code = "\n\n".join(CODE_BLOCK_RE.findall(text))
                 digest = hashlib.sha1(code.encode()).hexdigest()
                 if self.verify_code and code.strip() and not tested_ok and verify_rounds < 3 and digest not in verified:
@@ -268,7 +291,12 @@ class Agent:
                     if on_tool:
                         on_tool(name, args)
                     side_effect = name in NEEDS_CONFIRMATION and not (name == "run_python" and readonly_python(args.get("code", "")))
-                    if self.guard and tainted and not user_wants_action and side_effect:
+                    command = args.get("command", "") if name == "run_shell" else ""
+                    if self.nudge and display_only_shell(command):
+                        result = DISPLAY_ONLY_MSG          # text belongs in the reply, not in a shell echo (and needs no permission prompt)
+                    elif self.nudge and file_via_shell(command):
+                        result = FILE_VIA_SHELL_MSG
+                    elif self.guard and tainted and not user_wants_action and side_effect:
                         result = BLOCKED
                     elif self.confirm and name in NEEDS_CONFIRMATION and not self.confirm(name, args):
                         result = "The user declined to run this tool call."
@@ -285,6 +313,11 @@ class Agent:
                         if name == "run_python" and tool_succeeded(result) and (
                                 "printed nothing" not in result or "assert" in args.get("code", "")):
                             tested_ok = True
+                if name == "fetch_url":
+                    fetched = True
+                if args and (name == "run_python" and len(args.get("code", "")) > 60 or name == "write_file" and str(
+                        args.get("path", "")).lower().endswith((".py", ".js", ".ts", ".java", ".c", ".cpp", ".go", ".rs", ".sh", ".ps1"))):
+                    wrote_code = True  # code was written or run, so a "show me the code" request must see it in the reply
                 if name in EXTERNAL_TOOLS:
                     tainted = True
                 if on_result:

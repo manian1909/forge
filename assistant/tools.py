@@ -20,6 +20,34 @@ IS_WINDOWS = platform.system() == "Windows"
 SHELL_NAME = "PowerShell" if IS_WINDOWS else "bash"
 
 
+_DISPLAY_STMT = re.compile(r"^\s*(echo|Write-Output|Write-Host)\b", re.I)
+DISPLAY_ONLY_MSG = ("Not run: that command only prints text. Never use the shell to show text to the user. Write the text or code "
+                    "directly in your reply (code in a ```python block). Use run_python or write_file if you need to execute or save it.")
+FILE_VIA_SHELL_MSG = ("Not run: do not build files with echo in the shell (quoting breaks code). Use write_file with the path and the "
+                      "full content, then run it with run_python or `python file.py`.")
+
+
+def display_only_shell(command):
+    """True for commands that merely print text (echo 'hello'; echo 'more'), which belongs in the reply instead."""
+    stmts = [s for s in re.split(r"[;\n]+", command) if s.strip()]
+    if not stmts or not all(_DISPLAY_STMT.match(s) for s in stmts):
+        return False
+    if re.search(r">|\|", command):
+        return False
+    if len(stmts) == 1 and re.search(r"\$|%", command):
+        return False  # `echo $env:PATH` is a real lookup, not display
+    return True
+
+
+def file_via_shell(command):
+    """True for long echo/Write-Output pipelines that write a file; write_file is the right tool for that."""
+    if len(command) < 120:
+        return False
+    starts = re.match(r"\s*(echo|Write-Output|Write-Host|@?['\"])", command, re.I)
+    writes = re.search(r"(>>?\s*[\w./\\-]+|\|\s*(Out-File|Set-Content|Add-Content))", command, re.I)
+    return bool(starts and writes)
+
+
 def autoprint_last_expression(code):
     """Make a script behave like a REPL: if it ends in a bare expression, print it (unless it is None).
 
@@ -162,7 +190,7 @@ class Toolbox:
         if name not in TOOL_NAMES or fn is None:
             return f"Error: unknown tool {name!r}. Available: {', '.join(TOOL_NAMES)}"
         try:
-            result = _truncate(fn(**(args or {})))
+            result = _truncate(fn(**(args or {})), 9000 if name == "fetch_url" else MAX_OUTPUT)
             if self.harden and name in ("run_shell", "run_python"):
                 result = self._add_hints(result, name)
             if self.harden and name in ("read_file", "fetch_url", "web_search"):
@@ -182,6 +210,9 @@ class Toolbox:
     # ---------------------------------------------------------------- tools
     def run_python(self, code):
         if self.harden:
+            named = self._resolve(code.strip()) if re.fullmatch(r"[\w./\\-]+\.py", code.strip()) else None
+            if named is not None and named.is_file():
+                code = named.read_text(encoding="utf-8")  # the model passed a filename instead of source: run that file
             code = autoprint_last_expression(code)
         with tempfile.NamedTemporaryFile("w", suffix=".py", dir=self.workspace,
                                          delete=False, encoding="utf-8") as f:
@@ -276,7 +307,22 @@ class Toolbox:
         resp.raise_for_status()
         if "html" not in resp.headers.get("content-type", "html"):
             return resp.text
-        return html_to_text(resp.text)
+        body = html_to_text(resp.text)
+        if not self.harden:
+            return body
+        info = head_info(resp.text)
+        out = [p for p in (info, body) if p]
+        if len(body) < 80 and "<script" in resp.text.lower():  # no static text: the page is drawn by JavaScript
+            rendered = render_with_browser(str(resp.url))
+            if rendered:
+                return "\n".join([p for p in (info, "[Rendered in a headless browser]", rendered) if p])
+            strings = bundle_strings(str(resp.url), resp.text)
+            if len(strings) >= 5:
+                out += ["[This page draws its content with JavaScript. Text found in its script bundle follows; it may be incomplete.]"] + strings
+            else:
+                out.append("[This page draws its content with JavaScript, so only the title and description above could be read. "
+                           "For full rendering install a browser once: pip install playwright && python -m playwright install chromium-headless-shell]")
+        return "\n".join(out) or "(the page returned no readable text)"
 
 
 def _format_process(proc):
@@ -288,6 +334,70 @@ def _format_process(proc):
     if proc.returncode != 0:
         parts.append(f"[exit code {proc.returncode}]")
     return "\n".join(parts) if parts else "(no output)"
+
+
+def render_with_browser(url, timeout=30):
+    """Load the page in headless Chromium (optional: needs `pip install playwright` and its browser) and return its text."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        return None
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.goto(url, wait_until="networkidle", timeout=timeout * 1000)
+            text = page.inner_text("body")
+            browser.close()
+    except Exception:  # noqa: BLE001 - no browser installed, navigation timeout, anything: fall back to static reading
+        return None
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    return text or None
+
+
+def head_info(page):
+    """Title and description-type meta tags, which survive even when the body is rendered by JavaScript."""
+    info = []
+    title = re.search(r"(?is)<title[^>]*>(.*?)</title>", page)
+    if title and title.group(1).strip():
+        info.append(f"Title: {html.unescape(title.group(1).strip())}")
+    seen = set()
+    for tag in re.findall(r"(?is)<meta\s[^>]*>", page):
+        attrs = {k.lower(): v for k, v in re.findall(r"""([\w:-]+)\s*=\s*["']([^"']*)["']""", tag)}
+        key = attrs.get("name") or attrs.get("property") or ""
+        if key in ("description", "og:title", "og:description", "og:site_name", "author", "keywords") and attrs.get("content"):
+            line = f"{key}: {html.unescape(attrs['content'])}"
+            if line not in seen:
+                seen.add(line)
+                info.append(line)
+    return "\n".join(info)
+
+
+def bundle_strings(base_url, page, limit_chars=2500):
+    """Readable sentences from the page's own JavaScript bundle: how a single-page app's visible text can be recovered
+    without a browser. Same-origin scripts only."""
+    import httpx
+    from urllib.parse import urljoin, urlparse
+
+    found, total = [], 0
+    for src in re.findall(r"""<script[^>]+src=["']([^"']+)["']""", page)[:4]:
+        url = urljoin(base_url, src)
+        if urlparse(url).netloc != urlparse(base_url).netloc:
+            continue
+        try:
+            js = httpx.get(url, follow_redirects=True, timeout=20).text[:2_500_000]
+        except httpx.HTTPError:
+            continue
+        for lit in re.findall(r"""(?:"((?:[^"\\\n]|\\.){35,400})"|'((?:[^'\\\n]|\\.){35,400})')""", js):
+            s = (lit[0] or lit[1]).replace("\\n", " ").strip()
+            if s.count(" ") < 5 or re.search(r"[{};=<>\\]|https?:|function|=>|\.js|\.css|webpack", s):
+                continue
+            if s not in found:
+                found.append(s)
+                total += len(s)
+            if total > limit_chars:
+                return found
+    return found
 
 
 def html_to_text(page):

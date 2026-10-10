@@ -119,6 +119,35 @@ def test_refusals_can_be_left_alone_and_tool_errors_are_not_treated_as_refusals(
     assert out == "I can't find missing.txt." and len(llm.seen) == 2
 
 
+def test_echo_that_only_prints_text_is_not_run_and_never_asks_permission():
+    asked = []
+    llm = Script(call("run_shell", command="echo 'here is the code'; echo 'def f(): pass'"), say("Here is the code: ..."))
+    a = Agent(llm, Toolbox(tempfile.mkdtemp()), confirm=lambda n, args: asked.append(n) or True)
+    a.run("show me the code")
+    result = [m["content"] for m in a.messages if m["role"] == "tool"][0]
+    assert result.startswith("Not run") and not asked
+
+
+def test_building_a_file_with_echo_is_redirected_to_write_file():
+    cmd = "echo 'def three_sum(nums):'; " + "echo '    pass'; " * 12 + "echo 'x' > three_sum.py"
+    llm = Script(call("run_shell", command=cmd), say("ok"))
+    a = agent(llm)
+    a.run("make three_sum.py")
+    assert "write_file" in [m["content"] for m in a.messages if m["role"] == "tool"][0]
+
+
+def test_a_url_in_the_request_must_be_fetched_before_answering():
+    llm = Script(say("It is a Next.js demo."), call("fetch_url", url="http://127.0.0.1:9/x"), say("It could not be reached."))
+    agent(llm).run("summarise https://my-site.example/ for me")
+    assert "not fetched" in last_user_note(llm, 1) or "have not fetched" in last_user_note(llm, 1)
+
+
+def test_asked_to_see_code_that_was_only_written_to_a_file_is_challenged():
+    llm = Script(call("write_file", path="three_sum.py", content="def f(): pass"), say("Done, it ran fine."), say("```python\ndef f(): pass\n```"))
+    Agent(llm, Toolbox(tempfile.mkdtemp()), confirm=None, verify_code=False).run("write three sum and show the code here, then run it")
+    assert "asked to see the code" in last_user_note(llm, 2)
+
+
 def test_correct_output_is_confirmed_and_history_stays_clean():
     llm = Script(say("```python\nprint(6*7)\n```"), say("VERIFIED"))
     a = agent(llm)

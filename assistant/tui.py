@@ -11,6 +11,7 @@ searching are automatic. /auto switches to fully autonomous.
 """
 
 import argparse
+import json
 import sys
 import time
 from pathlib import Path
@@ -35,6 +36,7 @@ HELP = """[bold]Commands[/bold]
   [cyan]/help[/cyan]            this list
   [cyan]/auto[/cyan]            toggle fully autonomous mode (no permission prompts)
   [cyan]/mode ask|auto[/cyan]   choose the permission mode
+  [cyan]/default ask|auto[/cyan] the mode jarvis opens in from now on (saved in ~/.forge/config.json)
   [cyan]/reset[/cyan]           forget the conversation   [cyan]/clear[/cyan] clear the screen
   [cyan]/ws <folder>[/cyan]     change the working folder the tools use
   [cyan]/model <name>[/cyan]    switch the Ollama model for this session
@@ -49,6 +51,23 @@ TOOL_INFO = {
     "write_file": "create or overwrite files (asks first)", "read_file": "read a file", "list_dir": "list a folder",
     "web_search": "search the web", "fetch_url": "read a web page",
 }
+
+
+CONFIG_PATH = Path.home() / ".forge" / "config.json"
+
+
+def load_config():
+    try:
+        return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def save_config(**values):
+    cfg = load_config()
+    cfg.update(values)
+    CONFIG_PATH.parent.mkdir(exist_ok=True)
+    CONFIG_PATH.write_text(json.dumps(cfg, indent=1), encoding="utf-8")
 
 
 class Jarvis:
@@ -245,6 +264,13 @@ class Jarvis:
             if rest in ("ask", "auto"):
                 self.mode = rest
             c.print(f"mode: {self._mode_label()}")
+        elif cmd == "/default":
+            if rest in ("ask", "auto"):
+                save_config(mode=rest)
+                self.mode = rest
+                c.print(f"[dim]jarvis will now always open in {rest} mode[/dim]")
+            else:
+                c.print(f"[dim]current default: {load_config().get('mode', 'ask')}. Use /default ask or /default auto[/dim]")
         elif cmd == "/stats":
             self.show_stats = not self.show_stats
             c.print(f"[dim]speed line {'on' if self.show_stats else 'off'}[/dim]")
@@ -331,6 +357,7 @@ def build_parser():
     p.add_argument("prompt", nargs="*", help="a task to start with")
     p.add_argument("-p", "--print", dest="once", action="store_true", help="run the task, print the answer, exit")
     p.add_argument("--yes", action="store_true", help="autonomous: run tools without asking")
+    p.add_argument("--ask", action="store_true", help="ask before running tools, even if your saved default is autonomous")
     p.add_argument("--url", default="http://127.0.0.1:11434/v1")
     p.add_argument("--model", default="forge")
     p.add_argument("--workspace", default=".", help="folder the tools work in (default: where you ran jarvis)")
@@ -355,6 +382,8 @@ def main(argv=None):
             except (AttributeError, ValueError):
                 pass
     args = build_parser().parse_args(argv)
+    if load_config().get("mode") == "auto" and not args.ask:
+        args.yes = True  # your saved default (/default auto)
     console = Console(highlight=False)
 
     with console.status("[dim]checking the model server...[/dim]") if console.is_terminal else _Null() as st:

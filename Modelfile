@@ -74,3 +74,6 @@ PARAMETER top_p 0.8
 PARAMETER top_k 20
 PARAMETER repeat_penalty 1
 PARAMETER num_ctx 8192
+# Layers kept on the 4 GB GPU. Measured on the RTX 3050 Laptop: auto = 10 tok/s, 22 = 15 tok/s with ~400 MB VRAM spare,
+# 26 = 16 tok/s with ~200 MB spare (can run out of memory if the desktop needs VRAM). Lower it if you see CUDA out-of-memory errors.
+PARAMETER num_gpu 22

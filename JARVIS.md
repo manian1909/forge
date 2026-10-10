@@ -46,3 +46,17 @@ off). A reply is stopped after 15 minutes (`--turn-timeout`). Ctrl+C stops the c
 - `Ollama has no model called 'forge'`: run `ollama create forge -f Modelfile` in the project folder.
 - Slow first answer: the model is loading (5 GB). Later answers are quick. Typical speed is 7 to 9 tokens per second.
 - To use the cloud GPU as well, see REMOTE.md and start with `jarvis --llm-mode auto`.
+
+## Defaults you can change
+
+- `/default auto` (inside jarvis) makes it always open in autonomous mode; `/default ask` goes back. Saved in `~/.forge/config.json`.
+  `jarvis --ask` asks anyway for one session.
+- Refusals are off by default: the model answers and warns instead. `jarvis --allow-refusals` brings the old behaviour back.
+- Websites drawn by JavaScript (most modern sites) are read through a headless browser when Playwright is installed:
+  `pip install playwright` then `python -m playwright install chromium-headless-shell`. Without it only the title and description are read.
+
+## Speed
+
+The model keeps 22 of its layers on your 4 GB GPU (`PARAMETER num_gpu 22` in the Modelfile). Measured on the RTX 3050 laptop:
+Ollama's automatic split gave about 10 tok/s, 22 layers about 15 tok/s with roughly 400 MB of VRAM to spare, 26 layers about 16 tok/s
+with only 200 MB spare. If you ever see CUDA out-of-memory errors, lower the number and run `ollama create forge -f Modelfile`.
