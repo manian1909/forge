@@ -28,6 +28,7 @@ from . import serve
 from .agent import VERIFIED_FOOTER, Agent
 from .prompts import ASSISTANT_NAME
 from .router import RoutedLLM, make_llm
+from .speech import Speaker, normalise_rate
 from .tools import NEEDS_CONFIRMATION, TOOL_NAMES, Toolbox
 
 VERSION = "0.2"
@@ -41,6 +42,8 @@ HELP = """[bold]Commands[/bold]
   [cyan]/ws <folder>[/cyan]     change the working folder the tools use
   [cyan]/model <name>[/cyan]    switch the Ollama model for this session
   [cyan]/remote[/cyan] [cyan]/local[/cyan] [cyan]/backend[/cyan]   force remote APIs, release, show router status (needs providers.json)
+  [cyan]/speak[/cyan] [on|off|test]   read answers aloud (one way: it talks, it does not listen)
+  [cyan]/voice[/cyan]           list voices; [cyan]/voice <number|name>[/cyan] choose; [cyan]/voice engine edge|windows[/cyan]; [cyan]/voice rate faster|slower|+10%[/cyan]
   [cyan]/stats[/cyan]           toggle the speed line after each answer
   [cyan]/tools[/cyan]           list what the model can do
   [cyan]/save <file>[/cyan]     save the conversation as markdown
@@ -88,6 +91,9 @@ class Jarvis:
                            verify_code=not args.no_verify, max_seconds=args.turn_timeout or None,
                            no_refuse=not args.allow_refusals)
         self.transcript = []
+        cfg = load_config()
+        self.speaker = Speaker(cfg.get("voice_engine", "edge"), cfg.get("voice", ""), cfg.get("voice_rate", "+0%"))
+        self.speaker.enabled = bool(getattr(args, "speak", False) or cfg.get("speak"))
 
     # ------------------------------------------------------------ rendering helpers
     def banner(self, server_note=""):
@@ -101,6 +107,8 @@ class Jarvis:
             info.add_row("remote", f"{len(self.llm.remotes)} provider(s), routing {self.llm.mode}")
         if server_note:
             info.add_row("server", server_note)
+        if self.speaker.enabled:
+            info.add_row("voice", f"on  [dim]{self.speaker.current_label()}[/dim]")
         title = Text.assemble(("  J A R V I S", "bold cyan"), (f"   v{VERSION}", "dim"))
         self.console.print(Panel(Group(title, Text(""), info, Text(""), Text("Describe a task. I pick the tools. /help for commands.", style="dim")),
                                  border_style="cyan", padding=(0, 2)))
@@ -206,6 +214,7 @@ class Jarvis:
     def run_task(self, text):
         mark = len(self.agent.messages)
         start = time.time()
+        self.speaker.stop()
         self._streamed = False
         self.busy(True, "thinking")
         try:
@@ -215,6 +224,7 @@ class Jarvis:
             self.end_text()
             self.busy(False)
             del self.agent.messages[mark:]  # drop the half-finished turn so the next request is well-formed
+            self.speaker.stop()
             self.console.print("\n[yellow]stopped.[/yellow]")
             return None
         except Exception as e:  # noqa: BLE001
@@ -236,6 +246,7 @@ class Jarvis:
             used = ",".join(sorted({s.get("backend", "local") for s in stats}))
             self.console.print(f"[dim]  {tok} tokens, {stats[-1]['tokens_per_sec']:.1f} tok/s, {time.time() - start:.0f}s, "
                                f"{len(stats)} model call(s), via {used}[/dim]")
+        self.speaker.say(answer.replace(VERIFIED_FOOTER, ""))
         self.transcript += [("you", text), (ASSISTANT_NAME.lower(), answer)]
         self.console.print()
         return answer
@@ -271,6 +282,10 @@ class Jarvis:
                 c.print(f"[dim]jarvis will now always open in {rest} mode[/dim]")
             else:
                 c.print(f"[dim]current default: {load_config().get('mode', 'ask')}. Use /default ask or /default auto[/dim]")
+        elif cmd == "/speak":
+            self.speak_command(rest)
+        elif cmd == "/voice":
+            self.voice_command(rest)
         elif cmd == "/stats":
             self.show_stats = not self.show_stats
             c.print(f"[dim]speed line {'on' if self.show_stats else 'off'}[/dim]")
@@ -306,6 +321,81 @@ class Jarvis:
             c.print(f"[red]unknown command[/red] {cmd}. /help lists them.")
         return True
 
+    # ------------------------------------------------------------------ voice
+    def speak_command(self, rest):
+        c, sp = self.console, self.speaker
+        if rest == "test":
+            was, sp.enabled = sp.enabled, True
+            sp.say("Hello, I am Forge. This is how I sound when I read an answer out loud.")
+            sp.enabled = was
+            return
+        sp.enabled = {"on": True, "off": False}.get(rest, not sp.enabled)
+        if not sp.enabled:
+            sp.stop()
+        if sp.engine is None:
+            c.print("[red]no voice engine is available on this computer[/red]")
+            sp.enabled = False
+        save_config(speak=sp.enabled)
+        if sp.enabled:
+            c.print(f"[green]speak mode on[/green] [dim]{sp.current_label()}. I read my answers aloud; code is skipped. /voice changes the voice, /speak off stops.[/dim]")
+            if sp.engine_name == "edge":
+                c.print("[dim]  note: edge voices send each answer's text to Microsoft's online service to make the audio. "
+                        "/voice engine windows stays fully offline.[/dim]")
+            elif sp.engine_name == "windows":
+                c.print("[dim]  using the built-in Windows voice. For natural voices: pip install edge-tts, then /voice engine edge[/dim]")
+        elif sp.engine is not None:
+            c.print("[dim]speak mode off[/dim]")
+
+    def voice_command(self, rest):
+        c, sp = self.console, self.speaker
+        words = rest.split()
+        if words[:1] == ["engine"]:
+            name = words[1] if len(words) > 1 else ""
+            if name not in ("edge", "windows"):
+                c.print("[dim]use /voice engine edge  or  /voice engine windows[/dim]")
+                return
+            sp.configure(engine=name, voice="")
+            if sp.engine_name != name:
+                c.print(f"[yellow]{name} is not available here[/yellow] [dim](edge needs: pip install edge-tts)[/dim]")
+            save_config(voice_engine=sp.engine_name, voice=sp.voice)
+            c.print(f"[dim]voice: {sp.current_label()}[/dim]")
+            return
+        if words[:1] == ["rate"]:
+            rate = normalise_rate(" ".join(words[1:]))
+            if rate is None:
+                c.print("[dim]use /voice rate faster | slower | normal | +10% | -20%[/dim]")
+                return
+            sp.configure(rate=rate)
+            save_config(voice_rate=rate)
+            c.print(f"[dim]voice: {sp.current_label()}[/dim]")
+            return
+        voices = sp.voices()
+        if rest:
+            pick = None
+            if rest.isdigit() and 1 <= int(rest) <= len(voices):
+                pick = voices[int(rest) - 1][1]
+            else:
+                pick = next((v for label, v in voices if rest.lower() in (label.lower(), v.lower())), None)
+                if pick is None and sp.engine_name == "edge" and "-" in rest:
+                    pick = rest                      # any edge-tts ShortName, e.g. en-US-AriaNeural
+                if pick is None:
+                    pick = next((v for label, v in voices if rest.lower() in label.lower()), None)
+            if pick is None:
+                c.print(f"[red]no voice called[/red] {rest}")
+                return
+            sp.configure(voice=pick)
+            save_config(voice=pick, voice_engine=sp.engine_name)
+            c.print(f"[dim]voice: {sp.current_label()}[/dim]")
+            was, sp.enabled = sp.enabled, True
+            sp.say("Hi, this is my voice.")
+            sp.enabled = was
+            return
+        c.print(f"[bold]voices[/bold] [dim]({sp.engine_name}; current: {sp.voice or 'default'})[/dim]")
+        for i, (label, v) in enumerate(voices, 1):
+            mark = "[green]*[/green]" if v == sp.voice else " "
+            c.print(f" {mark} {i:>2}  {label}")
+        c.print("[dim]  /voice <number> picks one and plays a sample. /voice engine edge|windows, /voice rate faster|slower[/dim]")
+
     # ------------------------------------------------------------------ the loop
     def repl(self, first_prompt="", session=None):
         if session is None:
@@ -328,6 +418,7 @@ class Jarvis:
                     break
                 continue
             self.run_task(line)
+        self.speaker.stop()
         self.console.print("[dim]bye.[/dim]")
 
     def make_session(self):
@@ -369,6 +460,7 @@ def build_parser():
     p.add_argument("--allow-refusals", action="store_true", help="let the model refuse (by default a refusal is pushed back once)")
     p.add_argument("--no-start", action="store_true", help="do not start Ollama automatically")
     p.add_argument("--stats", action="store_true", help="show tokens/s after each answer")
+    p.add_argument("--speak", action="store_true", help="read answers aloud (same as typing /speak)")
     p.add_argument("--check", action="store_true", help="check the setup and exit")
     p.add_argument("--version", action="version", version=f"jarvis {VERSION}")
     return p

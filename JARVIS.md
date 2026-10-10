@@ -60,3 +60,15 @@ off). A reply is stopped after 15 minutes (`--turn-timeout`). Ctrl+C stops the c
 The model keeps 22 of its layers on your 4 GB GPU (`PARAMETER num_gpu 22` in the Modelfile). Measured on the RTX 3050 laptop:
 Ollama's automatic split gave about 10 tok/s, 22 layers about 15 tok/s with roughly 400 MB of VRAM to spare, 26 layers about 16 tok/s
 with only 200 MB spare. If you ever see CUDA out-of-memory errors, lower the number and run `ollama create forge -f Modelfile`.
+
+## Voice (it speaks, it does not listen)
+
+Type `/speak` and jarvis reads each answer aloud. Code blocks are skipped ("the code is on your screen"), links and
+markdown symbols are dropped, and speech starts after the first sentence is ready. A new question or Ctrl+C stops it.
+
+- `/speak` toggles it (`/speak on`, `/speak off`, `/speak test`); it is remembered for next time. `jarvis --speak` starts with it on.
+- `/voice` lists the voices, `/voice 3` picks number 3 and plays a sample, `/voice rate faster|slower|normal|+10%` changes the speed.
+- Two engines, switch with `/voice engine edge` or `/voice engine windows`:
+  - **edge**: natural neural voices (US, UK, India, Australia; any name from `edge-tts --list-voices` works, e.g. `/voice en-IN-NeerjaNeural`).
+    Needs `pip install edge-tts` and internet, and the text of each answer is sent to Microsoft's service to make the audio.
+  - **windows**: the voices built into Windows. Fully offline, more robotic.
