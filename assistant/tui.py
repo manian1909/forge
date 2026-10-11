@@ -86,6 +86,7 @@ class Jarvis:
         self._status = None
         self._buf = []
         self._streamed = False
+        args.model = args.model or load_config().get("model", "forge")
         self.llm = make_llm(args.url, args.model, args.temperature, args.llm_mode, args.providers,
                             log=lambda m: self.console.print(f"[dim]  [router] {m}[/dim]"))
         self.workspace = Path(args.workspace).resolve()
@@ -474,7 +475,9 @@ def build_parser():
     p.add_argument("--yes", action="store_true", help="autonomous: run tools without asking")
     p.add_argument("--ask", action="store_true", help="ask before running tools, even if your saved default is autonomous")
     p.add_argument("--url", default="http://127.0.0.1:11434/v1")
-    p.add_argument("--model", default="forge")
+    p.add_argument("--model", default=None, help="Ollama model (default: your saved choice, else forge)")
+    p.add_argument("--open", action="store_true", help="use the uncensored model (forge-open) and remember it as the default")
+    p.add_argument("--standard", action="store_true", help="go back to the standard model (forge) and remember it")
     p.add_argument("--workspace", default=".", help="folder the tools work in (default: where you ran jarvis)")
     p.add_argument("--temperature", type=float, default=0.3)
     p.add_argument("--turn-timeout", type=int, default=900, help="seconds before a single task is stopped (0 = never)")
@@ -498,6 +501,9 @@ def main(argv=None):
             except (AttributeError, ValueError):
                 pass
     args = build_parser().parse_args(argv)
+    if args.open or args.standard:
+        save_config(model="forge-open" if args.open else "forge")
+    args.model = args.model or load_config().get("model", "forge")
     if load_config().get("mode") == "auto" and not args.ask:
         args.yes = True  # your saved default (/default auto)
     console = Console(highlight=False)
