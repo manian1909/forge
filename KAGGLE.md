@@ -134,3 +134,37 @@ powershell -ExecutionPolicy Bypass -File scripts\serve.ps1 -Model models\Qwen3-8
 | `pip` / download errors | Internet is off, or the phone number isn't verified. |
 | `CUDA out of memory` with 14B | Add `--max-hours 9` and make sure the accelerator is a T4/P100 (16 GB), not "None". |
 | Very slow (hours per 100 steps) | The accelerator is set to CPU. Switch it to GPU T4 x2. |
+
+## 8. The uncensored version (no refusals)
+
+The refusals live in the model's weights, so a prompt cannot remove them. `kaggle/abliterate.py` finds the
+"refusal direction" inside the model and projects it out of the weights. Nothing is trained.
+
+**Without retraining** (you already have a finished run whose Output contains `forge-qwen3-8b/lora/`):
+
+1. In the notebook: **+ Add Input** -> **Notebook Output Files** -> pick the old version.
+2. Use the new `forge-kit` dataset version (it holds `kaggle/abliterate.py`) and run:
+
+```python
+import glob
+script = glob.glob("/kaggle/input/**/forge-kit/kaggle/run_all.py", recursive=True)[0]
+!python {script} --preset qwen3-8b --skip-train --abliterate
+```
+
+**Together with a new training run:** add `--abliterate` to the normal command from step 5.
+
+Use the GPU T4 x2 accelerator (the model is edited in 16-bit, which needs both GPUs' memory). The Output tab then
+has `forge-uncensored-Q4_K_M.gguf` and `abliteration_report.json` (refusal rates before and after, with sample
+replies). If `llama-quantize` cannot be built there you get `forge-uncensored-Q8_0.gguf` (8.5 GB) instead.
+
+Use it locally:
+
+```powershell
+# put the file in models\ and write a Modelfile.open: copy Modelfile and change the FROM line
+ollama create forge-open -f Modelfile.open
+python -m bench.refusal_check --model forge-open     # how often it still declines
+jarvis --model forge-open
+```
+
+It reduces refusals sharply but not to exactly zero, and an 8B model's writing in this area can still be bland.
+Run the main and held-out benchmarks on it too, to make sure the edit did not cost accuracy.

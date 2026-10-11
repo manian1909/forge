@@ -77,6 +77,10 @@ def main():
     p.add_argument("--resume", choices=["auto", "no"], default="auto",
                    help="auto: continue from a checkpoint found in attached inputs")
     p.add_argument("--skip-train", action="store_true", help="only export an existing adapter")
+    p.add_argument("--abliterate", action="store_true",
+                   help="also write forge-uncensored-*.gguf: the same model with its refusal direction removed")
+    p.add_argument("--no-export", action="store_true", help="skip the normal GGUF export (with --abliterate: only make the uncensored one)")
+    p.add_argument("--adapter", help="with --skip-train: folder holding adapter_config.json (default: search /kaggle/input)")
     a = p.parse_args()
 
     WORK.mkdir(parents=True, exist_ok=True)
@@ -126,17 +130,35 @@ def main():
         run(cmd, env=env)
 
     lora = out / "lora"
+    if a.skip_train:
+        found = [a.adapter] if a.adapter else glob.glob(f"/kaggle/input/**/forge-{a.preset}/lora", recursive=True)
+        if found:
+            lora = Path(found[0])
     if not (lora / "adapter_config.json").exists():
         raise SystemExit(f"no adapter at {lora}; training did not finish")
 
     # 5. export: merged GGUF first, adapter-only GGUF as a fallback
     TMP.mkdir(parents=True, exist_ok=True)
-    code = run([sys.executable, "training/export.py", lora, "--quant", a.quant,
-                "--out", TMP / "gguf", "--copy-to", WORK], check=False, env=env)
-    if code != 0:
-        log("merged export failed; exporting the adapter as GGUF instead")
-        run([sys.executable, "training/export.py", lora, "--method", "lora",
-             "--out", WORK], check=False, env=env)
+    if not a.no_export:
+        code = run([sys.executable, "training/export.py", lora, "--quant", a.quant,
+                    "--out", TMP / "gguf", "--copy-to", WORK], check=False, env=env)
+        if code != 0:
+            log("merged export failed; exporting the adapter as GGUF instead")
+            run([sys.executable, "training/export.py", lora, "--method", "lora",
+                 "--out", WORK], check=False, env=env)
+
+    # 5b. optional: the same model with refusals removed from its weights
+    if a.abliterate:
+        base = {"qwen3-8b": "Qwen/Qwen3-8B", "qwen3-14b": "Qwen/Qwen3-14B", "qwen3-0.6b": "Qwen/Qwen3-0.6B"}[a.preset]
+        run([sys.executable, "-m", "pip", "install", "-q", "peft", "datasets"], check=False)
+        code = run([sys.executable, CODE / "kaggle/abliterate.py", "--base", base, "--adapter", lora,
+                    "--out", TMP / "open", "--quant", a.quant], check=False, env={**env, "CUDA_VISIBLE_DEVICES": "0,1"})
+        if code == 0:
+            for f in (TMP / "open").glob("forge-uncensored-*.gguf"):
+                shutil.copy(f, WORK / f.name)
+            shutil.copy(TMP / "open/report.json", WORK / "abliteration_report.json")
+        else:
+            log("abliteration failed; the normal model above is still fine (see the log)")
 
     # 6. tidy the Output tab (20 GB limit); keep checkpoints only for resuming
     status = out / "status.json"
