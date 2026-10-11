@@ -35,6 +35,9 @@ PRESETS = {
                      max_len=4096, batch=2, accum=8, rank=32),
     "qwen3-14b": dict(model="unsloth/Qwen3-14B-unsloth-bnb-4bit", hf_model="Qwen/Qwen3-14B",
                       max_len=2048, batch=1, accum=16, rank=16),
+    # a 14B whose refusals were removed before training (community abliteration of Qwen3-14B), loaded in 4-bit on the fly
+    "qwen3-14b-open": dict(model="huihui-ai/Huihui-Qwen3-14B-abliterated-v2", hf_model="huihui-ai/Huihui-Qwen3-14B-abliterated-v2",
+                           max_len=2048, batch=1, accum=16, rank=16),
     # tiny preset for smoke-testing the pipeline on any machine
     "qwen3-0.6b": dict(model="unsloth/Qwen3-0.6B-unsloth-bnb-4bit", hf_model="Qwen/Qwen3-0.6B",
                        max_len=1024, batch=2, accum=2, rank=8),

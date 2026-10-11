@@ -29,10 +29,10 @@ TMP = Path(os.environ.get("FORGE_TMP", "/tmp/forge-export"))                    
 LOG = WORK / "run_all.log"
 
 # leave time for export inside Kaggle's 12 h session limit
-DEFAULT_HOURS = {"qwen3-8b": 10.0, "qwen3-14b": 9.0, "qwen3-0.6b": 1.0}
+DEFAULT_HOURS = {"qwen3-8b": 10.0, "qwen3-14b": 9.0, "qwen3-14b-open": 10.0, "qwen3-0.6b": 1.0}
 # share of the public data used by default, sized so one epoch fits a single
 # 12 h session on a T4 (8B trains at roughly 330 tokens/s; 14B at about half that)
-DEFAULT_SCALE = {"qwen3-8b": 0.6, "qwen3-14b": 0.3, "qwen3-0.6b": 1.0}
+DEFAULT_SCALE = {"qwen3-8b": 0.6, "qwen3-14b": 0.3, "qwen3-14b-open": 0.3, "qwen3-0.6b": 1.0}
 
 
 def log(msg):
@@ -68,7 +68,7 @@ def find_resume_checkpoint(preset):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--preset", default="qwen3-8b", choices=["qwen3-8b", "qwen3-14b", "qwen3-0.6b"])
+    p.add_argument("--preset", default="qwen3-8b", choices=["qwen3-8b", "qwen3-14b", "qwen3-14b-open", "qwen3-0.6b"])
     p.add_argument("--quant", default="q4_k_m", help="q4_k_m | iq4_xs | q3_k_m | q5_k_m | q8_0")
     p.add_argument("--max-hours", type=float, help="training time budget (default depends on preset)")
     p.add_argument("--max-steps", type=int, default=-1, help="for a quick test run, e.g. 20")
@@ -149,7 +149,7 @@ def main():
 
     # 5b. optional: the same model with refusals removed from its weights
     if a.abliterate:
-        base = {"qwen3-8b": "Qwen/Qwen3-8B", "qwen3-14b": "Qwen/Qwen3-14B", "qwen3-0.6b": "Qwen/Qwen3-0.6B"}[a.preset]
+        base = {"qwen3-8b": "Qwen/Qwen3-8B", "qwen3-14b": "Qwen/Qwen3-14B", "qwen3-14b-open": "huihui-ai/Huihui-Qwen3-14B-abliterated-v2", "qwen3-0.6b": "Qwen/Qwen3-0.6B"}[a.preset]
         run([sys.executable, "-m", "pip", "install", "-q", "peft", "datasets"], check=False)
         code = run([sys.executable, CODE / "kaggle/abliterate.py", "--base", base, "--adapter", lora,
                     "--out", TMP / "open", "--quant", a.quant], check=False, env={**env, "CUDA_VISIBLE_DEVICES": "0,1"})
