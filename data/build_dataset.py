@@ -22,8 +22,10 @@ import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from assistant.prompts import ASSISTANT_NAME, SYSTEM_PROMPT  # noqa: E402
+from persona_prompts import declined  # noqa: E402
 
 OUT = Path(__file__).resolve().parent / "out"
 GENERIC_SYSTEM = "You are a helpful assistant."
@@ -48,16 +50,21 @@ def take(stream, n, keep=lambda r: True, buffer=20000, seed=0):
 
 
 # --------------------------------------------------------------- converters
+def preachy(messages):
+    """True if an assistant turn declines or says 'as an AI' (public data is full of it; it fights the persona)."""
+    return any(m["role"] == "assistant" and declined(m["content"]) for m in messages)
+
+
 def from_ultrachat(row, max_turns=3):
     msgs = [m for m in row["messages"] if m["role"] in ("user", "assistant") and m["content"].strip()]
     msgs = msgs[: max_turns * 2]
-    if len(msgs) < 2 or msgs[-1]["role"] != "assistant":
+    if len(msgs) < 2 or msgs[-1]["role"] != "assistant" or preachy(msgs):
         return None
     return {"messages": [{"role": "system", "content": GENERIC_SYSTEM}] + msgs, "tools": None}
 
 
 def from_magicoder(row):
-    if row["lang"] not in CODE_LANGS or len(row["solution"]) > 6000:
+    if row["lang"] not in CODE_LANGS or len(row["solution"]) > 6000 or declined(row["solution"]):
         return None
     return {
         "messages": [
@@ -167,6 +174,7 @@ def main():
     p.add_argument("--fc-multi", type=int, default=800)
     p.add_argument("--agentic-repeat", type=int, default=2, help="oversample our own tool data")
     p.add_argument("--verified-repeat", type=int, default=3, help="oversample the code-checked data")
+    p.add_argument("--persona-repeat", type=int, default=3, help="oversample persona / adult / edgy data (generate_persona.py)")
     p.add_argument("--owner", default="manian1909")
     p.add_argument("--val-frac", type=float, default=0.02)
     p.add_argument("--seed", type=int, default=0)
@@ -210,6 +218,16 @@ def main():
     print(f"{'verified':<12} {len(verified):>6} x{a.verified_repeat}")
     for _ in range(a.verified_repeat):
         rows.extend({"messages": with_current_prompt(r["messages"]), "tools": r["tools"]} for r in verified)
+
+    # persona, adult-writing and edgy answers kept by code checks (data/generate_persona.py)
+    persona_path = OUT / "persona.jsonl"
+    persona = []
+    if persona_path.exists():
+        with open(persona_path, encoding="utf-8") as f:
+            persona = [json.loads(line) for line in f if line.strip()]
+    print(f"{'persona':<12} {len(persona):>6} x{a.persona_repeat}")
+    for _ in range(a.persona_repeat):
+        rows.extend({"messages": with_current_prompt(r["messages"]), "tools": r["tools"]} for r in persona)
 
     ident = identity_examples(a.owner, seed=a.seed)
     print(f"{'identity':<12} {len(ident):>6}")
