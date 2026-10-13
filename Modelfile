@@ -74,6 +74,10 @@ PARAMETER top_p 0.8
 PARAMETER top_k 20
 PARAMETER repeat_penalty 1
 PARAMETER num_ctx 8192
-# Layers kept on the 4 GB GPU. Measured on the RTX 3050 Laptop: auto = 10 tok/s, 22 = 15 tok/s with ~400 MB VRAM spare,
-# 26 = 16 tok/s with ~200 MB spare (can run out of memory if the desktop needs VRAM). Lower it if you see CUDA out-of-memory errors.
+# Layers kept on the 4 GB GPU. Measured on the RTX 3050 Laptop (2026-10-13, ~1.2k-token uncached prompts, 3 runs each):
+#   default Ollama:                     22 = 9.5 tok/s generation, ~580 tok/s prompt
+#   OLLAMA_FLASH_ATTENTION=1, KV q8_0:  22 = 10.7 tok/s, ~590 tok/s prompt;  24 = 12.6 tok/s but only ~136 tok/s prompt
+# jarvis feeds in a lot of new text (tool results, skill notes), so 22 is faster overall. jarvis sets the two variables
+# when it starts Ollama; set them as user environment variables for the tray app too.
+# Lower it if you see CUDA out-of-memory errors.
 PARAMETER num_gpu 22

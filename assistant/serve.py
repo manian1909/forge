@@ -60,10 +60,17 @@ def ollama_exe():
     return None
 
 
+# Flash attention and an 8-bit KV cache halve the cache's memory: about 12% faster generation at the same prompt speed
+# on the 4 GB GPU (numbers in the Modelfile). One model at a time, so a second model (forge-open next to forge) does not
+# take GPU memory from the one in use. Variables you set yourself win.
+SPEED_ENV = {"OLLAMA_FLASH_ATTENTION": "1", "OLLAMA_KV_CACHE_TYPE": "q8_0", "OLLAMA_MAX_LOADED_MODELS": "1"}
+
+
 def start_ollama(exe):
     flags = 0x00000008 | 0x08000000 if sys.platform == "win32" else 0  # DETACHED_PROCESS | CREATE_NO_WINDOW
+    env = {**SPEED_ENV, **os.environ}
     subprocess.Popen([exe, "serve"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                     creationflags=flags, close_fds=True)
+                     creationflags=flags, close_fds=True, env=env)
 
 
 def ensure_ready(url, model, say=lambda m: None, start=True, wait=60):
