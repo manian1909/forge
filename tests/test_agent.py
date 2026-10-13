@@ -202,6 +202,19 @@ def test_guard_blocks_writes_after_reading_but_allows_read_only_python():
     assert results[2].strip() == "10"                  # read-only computation still works
 
 
+def test_answer_about_a_saved_file_is_not_flagged_for_different_numbers():
+    code = "open('sales.csv', 'w').write('a')\nprint('saved sales.csv | sheet A1:C7')"
+    llm = Script(call("run_python", code=code), say("Created sales.csv with 6 expenses and a total row."))
+    out, _ = agent(llm).run("make sales.csv with 6 expenses")
+    assert out.startswith("Created sales.csv") and len(llm.seen) == 2       # no retry
+
+
+def test_wrong_number_is_still_flagged():
+    llm = Script(call("run_python", code="print(2**10)"), say("It is 1000."), say("It is 1024."))
+    out, _ = agent(llm).run("compute 2**10 with python")
+    assert out == "It is 1024." and "does not match" in last_user_note(llm)
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

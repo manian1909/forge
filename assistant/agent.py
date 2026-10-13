@@ -173,7 +173,8 @@ class Agent:
         name, result = last_run
         if "printed nothing" in result and re.search(r"\d", text):
             return NUDGE_NO_PRINT
-        if tool_succeeded(result) and len(result) < 400:
+        named_in_both = {f.lower() for f in FILE_RE.findall(result)} & {f.lower() for f in FILE_RE.findall(text)}
+        if tool_succeeded(result) and len(result) < 400 and not named_in_both:   # "saved x.xlsx ... A1:C7" vs "x.xlsx with 6 rows" is fine
             out, ans = _numbers(result), _numbers(text)
             if out and ans and not (out & ans):
                 return NUDGE_MISMATCH.format(output=result.strip()[:300])
