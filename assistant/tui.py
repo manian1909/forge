@@ -808,7 +808,7 @@ def main(argv=None):
         if not task:
             console.print("[red]no task given[/red]")
             sys.exit(2)
-        if piped and not args.yes:
+        if piped and not args.yes and ui.mode != "jail":
             ui.agent.confirm = lambda name, a: False  # nothing can answer a permission prompt, so risky tools are declined
         ui.run_task(task)
         return

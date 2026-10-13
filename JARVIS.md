@@ -25,6 +25,26 @@ Modelfile on first use, and loads the model into memory in the background.
 
 The tools work in the folder where you typed `jarvis` (change it with `/ws <folder>`).
 
+## The jarvis folder (sandbox)
+
+jarvis works in `C:\Users\himan\Downloads\jarvis` and nowhere else unless you tell it to. Windows itself enforces this:
+every command and every piece of code it runs is started as a **low-integrity process** with your own account's token.
+
+| | Allowed? |
+|---|---|
+| read files anywhere on the PC | yes |
+| create, edit, delete files inside the jarvis folder | yes, without asking |
+| run Python and PowerShell commands that work inside the folder | yes, without asking |
+| write, delete or change anything outside the folder (also registry) | no: Windows answers "access denied" |
+| administrator rights, installing software (`pip install`, `winget`, `Install-Module`...) | no: refused before running |
+
+Because the limit is the operating system's and not a check of the command text, `> file`, child processes, Python,
+`Set-Content` and so on are all covered. The first launch labels the folder (`icacls /setintegritylevel`, no admin needed).
+If you launch with `--workspace X` or `--here`, that folder becomes the only writable one for that session.
+`jarvis --no-jail` returns to the old behaviour (asks before each risky tool). `/mode ask` makes it ask even inside the folder.
+Not covered: a Windows administrator (UAC) prompt that you click "Yes" on. jarvis refuses to request one, but if one ever
+appears that you did not expect, click No.
+
 ## What it does
 
 You describe a task; the model picks the tools (run Python, run PowerShell, read/write/list files, search the web,
