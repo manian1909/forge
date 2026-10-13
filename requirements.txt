@@ -4,6 +4,14 @@ ddgs>=9.0
 rich>=13.7           # jarvis terminal UI
 prompt_toolkit>=3.0   # jarvis input line, history
 playwright>=1.45      # optional: lets jarvis read JavaScript-rendered sites (then: python -m playwright install chromium-headless-shell)
+# file skills: the model writes PDFs, Excel, Word, slides and charts with these
+reportlab>=4.0
+pypdf>=4.0
+openpyxl>=3.1
+pandas>=2.0
+matplotlib>=3.8
+python-docx>=1.1
+python-pptx>=1.0
 
 # data building / training (training itself runs on Kaggle with unsloth)
 datasets>=3.0
