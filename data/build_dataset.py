@@ -174,6 +174,7 @@ def main():
     p.add_argument("--fc-multi", type=int, default=800)
     p.add_argument("--agentic-repeat", type=int, default=2, help="oversample our own tool data")
     p.add_argument("--verified-repeat", type=int, default=3, help="oversample the code-checked data")
+    p.add_argument("--experience-repeat", type=int, default=2, help="oversample tasks that worked in real jarvis use")
     p.add_argument("--persona-repeat", type=int, default=3, help="oversample persona / adult / edgy data (generate_persona.py)")
     p.add_argument("--owner", default="manian1909")
     p.add_argument("--val-frac", type=float, default=0.02)
@@ -228,6 +229,16 @@ def main():
     print(f"{'persona':<12} {len(persona):>6} x{a.persona_repeat}")
     for _ in range(a.persona_repeat):
         rows.extend({"messages": with_current_prompt(r["messages"]), "tools": r["tools"]} for r in persona)
+
+    # tasks that worked in real jarvis use, exported by scripts/export_experience.py
+    experience_path = OUT / "experience.jsonl"
+    experience = []
+    if experience_path.exists():
+        with open(experience_path, encoding="utf-8") as f:
+            experience = [json.loads(line) for line in f if line.strip()]
+    print(f"{'experience':<12} {len(experience):>6} x{a.experience_repeat}")
+    for _ in range(a.experience_repeat):
+        rows.extend({"messages": with_current_prompt(r["messages"]), "tools": r["tools"]} for r in experience)
 
     ident = identity_examples(a.owner, seed=a.seed)
     print(f"{'identity':<12} {len(ident):>6}")
