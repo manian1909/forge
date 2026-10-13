@@ -21,7 +21,7 @@ def names(text, already=()):
 
 def test_requests_pick_the_right_skills(tmp_path, monkeypatch):
     monkeypatch.setenv("FORGE_HOME", str(tmp_path))
-    assert names("make an excel sheet of my expenses") == ["excel"]
+    assert names("make an excel sheet of my expenses") == ["excel_budget"]
     assert "pdf" in names("turn this into a PDF invoice")
     assert names("what's the weather in Pune right now?") == ["apis"]
     assert names("convert 100 USD to INR") == ["apis"]
