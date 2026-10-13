@@ -95,6 +95,30 @@ guessing. `/bad` removes the last one; `/good` keeps one the checks skipped. `py
 turns them into training rows that `data/build_dataset.py` adds to the next Kaggle run, without the notes, so the next
 model does these tasks on its own.
 
+## Long tasks: standby worker and memory sharing
+
+`/bg <task>` (or `jarvis --bg "task"`) hands a task to the standby worker, a hidden background process. Your games
+and apps come first:
+
+- When free RAM drops below 1.2 GB, a full-screen app is in front, or an app on your list runs (`/standby heavy
+  game.exe`), the worker stops the reply it is writing and tells Ollama to unload the model. That hands about 3.7 GB of
+  RAM and the GPU back to your app.
+- When 4.8 GB is free and things have stayed calm for 30 s, the model loads again and the task carries on.
+- Before every model call, the whole conversation is saved to `~/.forge/tasks/<id>.json`. A pause, a crash, a killed
+  process or a reboot only loses the reply being written. The next start resumes from the last finished step, and no
+  tool call runs twice.
+- If the server errors (Ollama restarting, say), the worker retries with a growing wait. It gives up only after 8
+  errors in a row.
+
+`/jobs` lists tasks, `/jobs 2` shows one with its log and answer, and `/cancel 2` stops one. Answers also go to
+`~/Downloads/jarvis/results`. `/standby on` starts the worker when you log in (a script in your Startup folder, no
+admin rights needed). `/standby` shows the current memory status and settings. The worker's log is
+`~/.forge/tasks/worker.log`. To change the thresholds, set `"standby": {"pause_mb": 1200, "resume_mb": 4800}` in
+`~/.forge/config.json`.
+
+Normal chat tasks pause the same way, though they skip the full-screen rule, since jarvis itself is in front then.
+`--no-governor` turns pausing off.
+
 ## Troubleshooting
 
 - `'jarvis' is not recognized`: open a new terminal; if it still fails run `python scripts\install_jarvis.py` again.
