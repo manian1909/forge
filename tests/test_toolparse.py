@@ -101,9 +101,7 @@ def test_a_reply_cut_off_at_the_token_cap_runs_nothing():
     def handler(request):
         lines = [f"data: {json.dumps({'choices': [{'delta': {'content': GOOD}}]})}",
                  f"data: {json.dumps({'choices': [{'delta': {}, 'finish_reason': 'length'}]})}", "data: [DONE]", ""]
-        return httpx.Response(200, text="
-
-".join(lines))
+        return httpx.Response(200, text="\n\n".join(lines))
 
     client = LLMClient("http://x/v1", "forge", own_tools=True)
     client.http = httpx.Client(transport=httpx.MockTransport(handler))
