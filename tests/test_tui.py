@@ -147,6 +147,19 @@ def test_undo_and_retry():
     assert contents == ["one", "first"]   # /retry replaced "second" with "third", then /undo dropped that exchange
 
 
+def test_skill_notes_go_with_the_request_once_and_working_tasks_are_remembered():
+    code = "open('t.csv','w').write('a,b')\nprint('saved t.csv')"
+    ui, console, ws = make_ui(FakeLLM(call("run_python", code=code), say("Saved t.csv"), say("ok")), "--yes")
+    drive(ui, "make a csv spreadsheet of a and b\rand another csv please\r/exit\r")
+    users = [m["content"] for m in ui.agent.messages if m["role"] == "user"]
+    assert "(skill notes: excel)" in users[0] and "skill notes" not in users[1]     # not repeated in one conversation
+    assert "skill: excel" in text_of(console)
+    from assistant import experience
+    saved = experience.load()
+    assert saved and saved[-1]["task"] == "make a csv spreadsheet of a and b"
+    assert "recalled a similar task" in text_of(console)                              # the second request found it
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

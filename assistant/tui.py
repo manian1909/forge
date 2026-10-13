@@ -26,7 +26,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
-from . import serve, speech
+from . import experience, serve, skills, speech
 from .agent import VERIFIED_FOOTER, Agent
 from .prompts import ASSISTANT_NAME
 from .router import RoutedLLM, make_llm
@@ -46,6 +46,8 @@ HELP = """[bold]Commands[/bold]
   [cyan]/compact[/cyan] [focus]  summarise the conversation to free context (happens by itself near the limit)
   [cyan]/usage[/cyan]           tokens used this session, today and in total
   [cyan]/undo[/cyan]            forget the last exchange   [cyan]/retry[/cyan] ask the last request again
+  [cyan]/skills[/cyan]          how-to notes (PDF, Excel, Word, slides, charts, APIs) added when a request needs them; [cyan]/skill <name>[/cyan] forces one
+  [cyan]/good[/cyan] [cyan]/bad[/cyan]       keep or forget the last task as an example to copy next time; [cyan]/learn on|off[/cyan]
   [cyan]/ws <folder>[/cyan]     change the working folder the tools use
   [cyan]/model <name>[/cyan]    switch the Ollama model for this session
   [cyan]/remote[/cyan] [cyan]/local[/cyan] [cyan]/backend[/cyan]   force remote APIs, release, show router status (needs providers.json)
@@ -110,7 +112,13 @@ class Jarvis:
         self._window = None
         self._ratio = 1.0          # real prompt tokens / our estimate, refreshed after every task
         self.last_request = ""
+        self.skills = skills.load_skills()
+        self.loaded_skills = set()     # skills already shown in this conversation (they stay in the history)
+        self.forced_skills = []        # /skill <name> adds one to the next request
         cfg = load_config()
+        self.learn = cfg.get("learn", True)   # remember tasks that worked and recall them (/learn off stops it)
+        self.remembered = False
+        self.last_turn = None
         self.speaker = Speaker(cfg.get("voice_engine", "edge"), cfg.get("voice", ""), cfg.get("voice_rate", "+0%"))
         self.speaker.enabled = bool(getattr(args, "speak", False) or cfg.get("speak"))
 
@@ -271,6 +279,7 @@ class Jarvis:
         if stats:
             self.usage.add(stats)
         self.agent.messages = messages
+        self.loaded_skills.clear()          # the summary does not carry the skill notes
         after, _ = self.context_used()
         why = "context was nearly full, so " if auto else ""
         self.console.print(f"[magenta]  compacted[/magenta] [dim]{why}the conversation is now a summary: "
@@ -323,11 +332,26 @@ class Jarvis:
             for name, (p, c) in u.by_backend.items():
                 self.console.print(f"[dim]  via {name}: {p:,} prompt + {c:,} generated[/dim]")
 
+    def hints_for(self, text):
+        """Skill notes and a remembered example for this request: (text to add, names of the skills used, example)."""
+        picked = skills.match(text, self.skills, self.loaded_skills)
+        for name in self.forced_skills:
+            if name in self.skills and self.skills[name] not in picked and name not in self.loaded_skills:
+                picked.append(self.skills[name])
+        example = experience.best_match(text) if self.learn else None
+        parts = [p for p in (skills.render(picked), experience.render(example) if example else "") if p]
+        return "\n\n".join(parts), [s.name for s in picked], example
+
     def run_task(self, text):
-        used, _ = self.context_used(text)
+        hints, picked, example = self.hints_for(text)
+        used, _ = self.context_used(text + hints)
         if used > AUTO_COMPACT * self.window and len(self.agent.messages) > 2:
-            self.compact(auto=True)
+            if self.compact(auto=True):
+                hints, picked, example = self.hints_for(text)
         self.last_request = text
+        if picked or example:
+            what = ([f"skill: {', '.join(picked)}"] if picked else []) + (["recalled a similar task that worked"] if example else [])
+            self.console.print(f"[dim]  ({' · '.join(what)})[/dim]")
         mark = len(self.agent.messages)
         start = time.time()
         self.speaker.stop()
@@ -335,7 +359,7 @@ class Jarvis:
         self.busy(True, "thinking")
         try:
             answer, stats = self.agent.run(text, on_token=self.on_token, on_tool=self.on_tool, on_result=self.on_result,
-                                           on_verify=self.on_verify, on_retry=self.on_retry)
+                                           on_verify=self.on_verify, on_retry=self.on_retry, hints=hints)
         except KeyboardInterrupt:
             self.end_text()
             self.busy(False)
@@ -367,6 +391,11 @@ class Jarvis:
                                f"{len(stats)} model call(s), via {used}[/dim]")
         self.speaker.say(answer.replace(VERIFIED_FOOTER, ""))
         self.transcript += [("you", text), (ASSISTANT_NAME.lower(), answer)]
+        self.loaded_skills.update(picked)
+        self.forced_skills.clear()
+        turn = self.agent.messages[mark:]
+        self.last_turn = (text, turn, answer)
+        self.remembered = bool(self.learn and experience.worked(turn, answer) and experience.record(text, turn, answer))
         self.console.print()
         return answer
 
@@ -419,7 +448,40 @@ class Jarvis:
         elif cmd == "/reset":
             self.agent.reset()
             self.transcript.clear()
+            self.loaded_skills.clear()
             c.print("[dim](conversation cleared)[/dim]")
+        elif cmd == "/skills":
+            if rest == "reload":
+                self.skills = skills.load_skills()
+            for sk in self.skills.values():
+                mark = "[green]*[/green]" if sk.name in self.loaded_skills else " "
+                c.print(f" {mark} [cyan]{sk.name:<8}[/cyan] {sk.description}  [dim]{sk.path.parent.name}/[/dim]")
+            c.print(f"[dim]  added to a request by itself when its words appear (* = already in this conversation). "
+                    f"/skill <name> adds one to your next request. Add your own as .md files in {forge_home() / 'skills'}[/dim]")
+        elif cmd == "/skill":
+            if rest in self.skills:
+                self.forced_skills.append(rest)
+                c.print(f"[dim]the {rest} notes will go with your next request[/dim]")
+            else:
+                c.print(f"[red]no skill called[/red] {rest or '(none given)'}. /skills lists them.")
+        elif cmd in ("/good", "/bad"):
+            task = None
+            if self.remembered:
+                task = experience.mark_last(cmd == "/good")
+            elif cmd == "/good" and self.last_turn and experience.record(*self.last_turn, good=True):
+                task = self.last_turn[0]             # it did not look finished to the checks, but you say it was good
+            if task is None:
+                c.print("[dim]the last task was not saved as an example (only tool-using tasks that worked are)[/dim]")
+            else:
+                self.remembered = cmd == "/good"
+                c.print(f"[dim]{'marked as a good example' if cmd == '/good' else 'forgotten, it will not be recalled'}: {task[:70]}[/dim]")
+        elif cmd == "/learn":
+            if rest in ("on", "off"):
+                self.learn = rest == "on"
+                save_config(learn=self.learn)
+            n = len(experience.load())
+            c.print(f"[dim]learning from past tasks is {'on' if self.learn else 'off'}; {n} example(s) saved in "
+                    f"{experience.path()}. /learn on|off[/dim]")
         elif cmd in ("/key", "/keys"):
             self.key_command(rest)
         elif cmd == "/context":

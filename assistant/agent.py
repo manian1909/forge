@@ -65,6 +65,7 @@ SIDE_EFFECT_RE = re.compile(
     r"(os\.(remove|rmdir|unlink|system|popen|kill|rename|makedirs|mkdir|startfile)|shutil\.|subprocess|\bsocket\b|requests\.|"
     r"urllib|http\.server|\binput\s*\(|sys\.exit|\bwhile\s+True\b|time\.sleep|__import__|\bexec\s*\(|"
     r"\.write_text|\.write_bytes|\.unlink|\.rmdir|\.mkdir|\.touch|\.to_csv|\.to_json|\.to_excel|"
+    r"\.save\(|\.build\(|\.savefig\(|\.output\(|ExcelWriter|httpx\.(post|put|patch|delete)|"
     r"open\s*\([^)]*,\s*(mode\s*=\s*)?['\"][rbtU]*[wax+][rbt+]*['\"])")
 CODE_BLOCK_RE = re.compile(r"```(?:python|py)[ \t]*\n(.*?)```", re.S)
 
@@ -84,7 +85,7 @@ NUDGE_REPEAT = ("You already ran exactly this and it failed:\n{error}\nDo not re
                 "and change the logic, or ask the user.")
 CLAIM_VERB_RE = re.compile(r"\b(fixed|updated|created|saved|wrote|written|modified|edited|changed|replaced)\b", re.I)
 NEGATION_RE = re.compile(r"\b(not|n't|never|will|would|should|could|can|need|needs|let's|let me|going to|if|once)\b", re.I)
-FILE_RE = re.compile(r"[\w][\w./\\-]*\.(?:py|txt|md|json|csv|ini|js|ts|html|css|ya?ml|toml|cfg|log|sh|ps1)\b", re.I)
+FILE_RE = re.compile(r"[\w][\w./\\-]*\.(?:py|txt|md|json|csv|ini|js|ts|html|css|ya?ml|toml|cfg|log|sh|ps1|pdf|xlsx|docx|pptx|png|jpg|svg)\b", re.I)
 
 
 def unwritten_claims(text, before, after):
@@ -203,9 +204,13 @@ class Agent:
         return kind, result
 
     # ------------------------------------------------------------------- run
-    def run(self, user_text, on_token=None, on_tool=None, on_result=None, on_verify=None, on_retry=None):
-        """Handle one user message. Returns the final assistant text and stats."""
-        self.messages.append({"role": "user", "content": user_text})
+    def run(self, user_text, on_token=None, on_tool=None, on_result=None, on_verify=None, on_retry=None, hints=""):
+        """Handle one user message. Returns the final assistant text and stats.
+
+        ``hints`` (skill notes, a remembered example) are added under the request; the checks below only look at
+        what the user wrote.
+        """
+        self.messages.append({"role": "user", "content": f"{user_text}\n\n{hints}" if hints else user_text})
         self._trim_history()
         all_stats = []
         used_tools, tainted, last_run = False, False, None
