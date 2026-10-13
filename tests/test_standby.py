@@ -2,6 +2,7 @@
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -165,6 +166,10 @@ def test_only_one_worker_at_a_time(tmp_path, monkeypatch):
     monkeypatch.setenv("FORGE_HOME", str(tmp_path))
     assert tasks.pid_alive(os.getpid()) and not tasks.pid_alive(0)
     assert tasks.claim_worker() and tasks.worker_pid() == os.getpid()
-    (tmp_path / "tasks" / "worker.lock").write_text(str(os.getppid()))      # some other live process holds it
-    said = []
-    assert tasks.work(make_agents(), None, said.append, once=True) == [] and "already running" in said[0]
+    other = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+        (tmp_path / "tasks" / "worker.lock").write_text(str(other.pid))      # some other live process holds it
+        said = []
+        assert tasks.work(make_agents(), None, said.append, once=True) == [] and "already running" in said[0]
+    finally:
+        other.kill()

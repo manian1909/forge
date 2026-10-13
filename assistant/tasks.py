@@ -127,7 +127,7 @@ def worker_pid():
 
 def claim_worker():
     other = worker_pid()
-    if other and other != os.getpid():
+    if other and other not in (os.getpid(), os.getppid()):     # start_worker wrote our pid (or our launcher's) already
         return False
     _lock().write_text(str(os.getpid()))
     return True
@@ -150,13 +150,19 @@ def start_worker(extra_args=()):
     pid = worker_pid()
     if pid:
         return pid
-    exe = Path(sys.executable)
-    quiet = exe.with_name("pythonw.exe")
-    cmd = [str(quiet if quiet.exists() else exe), str(REPO / "jarvis.py"), "--worker", *extra_args]
+    cmd = [_python(), str(REPO / "jarvis.py"), "--worker", *extra_args]
     flags = 0x00000008 | 0x08000000 | 0x00000200 if sys.platform == "win32" else 0   # detached, no window, own group
-    proc = subprocess.Popen(cmd, cwd=REPO, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    out = open(folder() / "worker.out", "a", encoding="utf-8")       # a crash before logging starts still leaves a trace
+    proc = subprocess.Popen(cmd, cwd=REPO, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
                             creationflags=flags, close_fds=True)
+    _lock().write_text(str(proc.pid))       # held for the new worker right away, so a second /bg does not start another
     return proc.pid
+
+
+def _python():
+    """python.exe, not pythonw.exe: pythonw has no stdout at all, which breaks console code; the window is hidden anyway."""
+    exe = Path(sys.executable)
+    return str(exe.with_name("python.exe") if exe.name.lower() == "pythonw.exe" else exe)
 
 
 def startup_file():
@@ -169,9 +175,10 @@ def set_autostart(on):
     if not on:
         f.unlink(missing_ok=True)
         return None
-    exe = Path(sys.executable)
-    quiet = exe.with_name("pythonw.exe")
-    f.write_text(f'CreateObject("WScript.Shell").Run """{quiet if quiet.exists() else exe}"" ""{REPO / "jarvis.py"}"" --worker", 0, False\r\n',
+    # window style 0 = hidden; output goes to worker.out like start_worker's
+    log = folder() / "worker.out"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(f'CreateObject("WScript.Shell").Run "cmd /c """"{_python()}"" ""{REPO / "jarvis.py"}"" --worker >> ""{log}"" 2>&1""", 0, False\r\n',
                  encoding="utf-8")
     return f
 
