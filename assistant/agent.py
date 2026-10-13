@@ -17,8 +17,8 @@ from pathlib import Path
 
 from .llm import TurnTimeout
 from .prompts import SYSTEM_PROMPT
-from .tools import (DISPLAY_ONLY_MSG, FILE_VIA_SHELL_MSG, NEEDS_CONFIRMATION, TOOL_SCHEMAS, display_only_shell,
-                    file_via_shell)
+from .tools import (DISPLAY_ONLY_MSG, FILE_VIA_SHELL_MSG, TOOL_SCHEMAS, display_only_shell, file_via_shell,
+                    needs_confirmation)
 
 # "Let me run it:" with no tool call behind it means the model stopped one step early
 ANNOUNCE_RE = re.compile(r"\b(let me|let's|i'll|i will|i'm going to|i am going to|now i'll|next,? i'll)\b(?! know)", re.I)
@@ -52,7 +52,7 @@ NUDGE_MISMATCH = ("(system note) Your answer does not match what the last tool c
 
 # Prompt-injection guard: once external content has been read, side-effecting tools only run if the user's own
 # message asked for some action. "Summarize notes.txt" never needs write_file. Read-only Python is always allowed.
-EXTERNAL_TOOLS = {"read_file", "fetch_url", "web_search"}
+EXTERNAL_TOOLS = {"read_file", "fetch_url", "web_search", "http_request"}
 ACTION_RE = re.compile(r"\b(creat|writ|sav|run|execut|fix|edit|chang|mak|build|install|delet|remov|updat|generat|add|"
                        r"modif|renam|mov|copy|compute|calculat|us(e|ing) (python|the shell|powershell)|shell|script|"
                        r"implement|refactor|patch|append|replace|put|store|export|convert|test|debug|count)", re.I)
@@ -290,7 +290,7 @@ class Agent:
                 if args is not None:
                     if on_tool:
                         on_tool(name, args)
-                    side_effect = name in NEEDS_CONFIRMATION and not (name == "run_python" and readonly_python(args.get("code", "")))
+                    side_effect = needs_confirmation(name, args) and not (name == "run_python" and readonly_python(args.get("code", "")))
                     command = args.get("command", "") if name == "run_shell" else ""
                     if self.nudge and display_only_shell(command):
                         result = DISPLAY_ONLY_MSG          # text belongs in the reply, not in a shell echo (and needs no permission prompt)
@@ -298,7 +298,7 @@ class Agent:
                         result = FILE_VIA_SHELL_MSG
                     elif self.guard and tainted and not user_wants_action and side_effect:
                         result = BLOCKED
-                    elif self.confirm and name in NEEDS_CONFIRMATION and not self.confirm(name, args):
+                    elif self.confirm and needs_confirmation(name, args) and not self.confirm(name, args):
                         result = "The user declined to run this tool call."
                     else:
                         run_key = hashlib.sha1(f"{name}{json.dumps(args, sort_keys=True)}".encode()).hexdigest()

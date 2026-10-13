@@ -12,6 +12,7 @@ searching are automatic. /auto switches to fully autonomous.
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import time
@@ -31,7 +32,7 @@ from .prompts import ASSISTANT_NAME
 from .router import RoutedLLM, make_llm
 from .session import Usage, breakdown, compact_messages, context_window, estimate_tokens, forge_home
 from .speech import Speaker, normalise_rate
-from .tools import NEEDS_CONFIRMATION, TOOL_NAMES, Toolbox
+from .tools import TOOL_NAMES, Toolbox, keys_path, load_keys, needs_confirmation
 
 VERSION = "0.2"
 REPO = Path(__file__).resolve().parent.parent
@@ -53,6 +54,7 @@ HELP = """[bold]Commands[/bold]
   [cyan]/voice[/cyan]           list voices; [cyan]/voice <number|name>[/cyan] choose; [cyan]/voice engine edge|windows[/cyan]; [cyan]/voice rate faster|slower|+10%[/cyan]
   [cyan]/stats[/cyan]           toggle the speed line after each answer
   [cyan]/tools[/cyan]           list what the model can do
+  [cyan]/key[/cyan] [NAME value]  list or save API keys for http_request (the model only sees {{NAME}}); [cyan]/key -NAME[/cyan] deletes
   [cyan]/save <file>[/cyan]     save the conversation as markdown
   [cyan]/exit[/cyan]            quit (or Ctrl+D)
 [bold]Keys[/bold]  Enter send, Alt+Enter new line, Ctrl+C stops the current task, Up/Down history"""
@@ -60,6 +62,7 @@ TOOL_INFO = {
     "run_python": "run Python code (asks first)", "run_shell": "run PowerShell commands (asks first)",
     "write_file": "create or overwrite files (asks first)", "read_file": "read a file", "list_dir": "list a folder",
     "web_search": "search the web", "fetch_url": "read a web page",
+    "http_request": "call any web API for live data (GET runs freely, POST/PUT/DELETE ask first)",
 }
 
 
@@ -185,7 +188,7 @@ class Jarvis:
         self.end_text()
         self.busy(False)
         self.console.print(self.tool_card(name, args))
-        if name not in NEEDS_CONFIRMATION or self.mode == "auto" or name in self.always:
+        if not needs_confirmation(name, args) or self.mode == "auto" or name in self.always:
             self.busy(True, f"running {name}")
 
     def on_result(self, name, result):
@@ -367,6 +370,31 @@ class Jarvis:
         self.console.print()
         return answer
 
+    def key_command(self, rest):
+        """/key lists saved API keys, /key NAME value saves one, /key -NAME deletes it. The model only sees {{NAME}}."""
+        c, keys = self.console, load_keys()
+        name, _, value = rest.partition(" ")
+        if name.startswith("-") and name[1:] in keys:
+            del keys[name[1:]]
+        elif name and value.strip():
+            if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+                c.print("[red]key names are letters, digits and _ (e.g. OPENWEATHER_KEY)[/red]")
+                return
+            keys[name] = value.strip()
+        elif name:
+            c.print("[dim]use /key NAME value to save, /key -NAME to delete[/dim]")
+            return
+        if name:
+            keys_path().write_text(json.dumps(keys, indent=1), encoding="utf-8")
+            c.print(f"[dim]saved. The model can now write {{{{{name.lstrip('-')}}}}} in http_request and the real value is filled in.[/dim]"
+                    if not name.startswith("-") else f"[dim]deleted {name[1:]}[/dim]")
+            return
+        if not keys:
+            c.print("[dim]no API keys saved. Free APIs (weather, currency, crypto, Wikipedia, GitHub...) need none. "
+                    "For others: /key NAME value[/dim]")
+        for k, v in sorted(keys.items()):
+            c.print(f"  [cyan]{k:<24}[/cyan] [dim]{v[:3]}...{v[-2:] if len(v) > 8 else ''}[/dim]")
+
     def undo(self):
         """Drop the last request and everything after it (tool calls, nudges, the answer)."""
         msgs = self.agent.messages
@@ -392,6 +420,8 @@ class Jarvis:
             self.agent.reset()
             self.transcript.clear()
             c.print("[dim](conversation cleared)[/dim]")
+        elif cmd in ("/key", "/keys"):
+            self.key_command(rest)
         elif cmd == "/context":
             self.show_context()
         elif cmd == "/compact":
