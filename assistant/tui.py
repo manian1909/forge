@@ -26,7 +26,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
-from . import experience, serve, skills, speech
+from . import experience, jail, serve, skills, speech
 from .agent import VERIFIED_FOOTER, Agent
 from .prompts import ASSISTANT_NAME
 from .router import RoutedLLM, make_llm
@@ -69,6 +69,12 @@ TOOL_INFO = {
 
 
 AUTO_COMPACT = 0.85   # compact by itself once the context is this full
+JAIL_TOOLS = {"run_python", "run_shell", "write_file"}   # run without asking while they are jailed to the folder
+
+
+def default_folder():
+    """Where jarvis works: ~/Downloads/jarvis (change it with `jarvis --folder X`, remembered)."""
+    return Path(load_config().get("folder") or Path.home() / "Downloads" / "jarvis")
 
 
 def config_path():
@@ -92,6 +98,8 @@ class Jarvis:
     def __init__(self, args, console=None):
         self.args = args
         self.console = console or Console(highlight=False, soft_wrap=False)
+        self.jailed = False
+        self.jail_root = None
         self.mode = "auto" if args.yes else "ask"
         self.always = set()
         self.show_stats = args.stats
@@ -102,9 +110,10 @@ class Jarvis:
         args.model = args.model or load_config().get("model", "forge")
         self.llm = make_llm(args.url, args.model, args.temperature, args.llm_mode, args.providers,
                             log=lambda m: self.console.print(f"[dim]  [router] {m}[/dim]"))
-        self.workspace = Path(args.workspace).resolve()
+        self.workspace = Path(args.workspace or default_folder()).resolve()
+        self.setup_jail(args)
         # history is kept until /compact (or auto-compact) shrinks it; the message cap is only a last resort
-        self.agent = Agent(self.llm, Toolbox(self.workspace), confirm=self.confirm, max_steps=14, max_history=200,
+        self.agent = Agent(self.llm, self.make_toolbox(), confirm=self.confirm, max_steps=14, max_history=200,
                            verify_code=not args.no_verify, max_seconds=args.turn_timeout or None,
                            no_refuse=not args.allow_refusals)
         self.transcript = []
@@ -122,6 +131,31 @@ class Jarvis:
         self.speaker = Speaker(cfg.get("voice_engine", "edge"), cfg.get("voice", ""), cfg.get("voice_rate", "+0%"))
         self.speaker.enabled = bool(getattr(args, "speak", False) or cfg.get("speak"))
 
+    # ------------------------------------------------------------ the jail
+    def setup_jail(self, args):
+        """Reads work everywhere; writes and commands are confined to one folder by Windows itself (see jail.py)."""
+        if getattr(args, "no_jail", False) or not jail.available():
+            return
+        root = default_folder().resolve() if not args.workspace else Path(args.workspace).resolve()
+        try:
+            if not jail.is_labelled(root):
+                jail.label_folder(root)
+        except (OSError, RuntimeError) as e:
+            self.console.print(f"[yellow]could not set up the jarvis folder sandbox ({e}); running without it[/yellow]")
+            return
+        self.jailed, self.jail_root = True, root
+        if not args.yes and load_config().get("mode") != "ask" and not args.ask:
+            self.mode = "jail"
+
+    def make_toolbox(self):
+        return Toolbox(self.workspace, sandbox=self.jail_root if self.jailed else None)
+
+    def auto_runs(self, name, args=None):
+        """True when this tool call needs no question: autonomous mode, or a jailed file/command tool."""
+        if self.mode == "auto" or name in self.always:
+            return True
+        return self.mode == "jail" and name in JAIL_TOOLS
+
     # ------------------------------------------------------------ rendering helpers
     def banner(self, server_note=""):
         info = Table.grid(padding=(0, 2))
@@ -130,6 +164,8 @@ class Jarvis:
         info.add_row("model", f"[bold]{self.llm.model}[/bold]  [dim]Qwen3-8B fine-tune, runs on your laptop[/dim]")
         info.add_row("folder", str(self.workspace))
         info.add_row("mode", self._mode_label())
+        if self.jailed:
+            info.add_row("sandbox", f"[green]writes only in {self.jail_root}[/green] [dim]· reads anywhere · no admin rights[/dim]")
         if isinstance(self.llm, RoutedLLM):
             info.add_row("remote", f"{len(self.llm.remotes)} provider(s), routing {self.llm.mode}")
         if server_note:
@@ -141,6 +177,8 @@ class Jarvis:
                                  border_style="cyan", padding=(0, 2)))
 
     def _mode_label(self):
+        if self.mode == "jail":
+            return "[green]sandboxed[/green] [dim]code, commands and files run without asking; they cannot write outside the folder[/dim]"
         return ("[green]autonomous[/green] [dim]tools run without asking[/dim]" if self.mode == "auto"
                 else "[yellow]ask[/yellow] [dim]I ask before running code, shell commands or writing files[/dim]")
 
@@ -196,7 +234,7 @@ class Jarvis:
         self.end_text()
         self.busy(False)
         self.console.print(self.tool_card(name, args))
-        if not needs_confirmation(name, args) or self.mode == "auto" or name in self.always:
+        if not needs_confirmation(name, args) or self.auto_runs(name, args):
             self.busy(True, f"running {name}")
 
     def on_result(self, name, result):
@@ -223,7 +261,7 @@ class Jarvis:
         self.busy(True, "thinking")
 
     def confirm(self, name, args):
-        if self.mode == "auto" or name in self.always:
+        if self.auto_runs(name, args):
             return True
         self.busy(False)
         try:
@@ -503,9 +541,13 @@ class Jarvis:
         elif cmd == "/auto":
             self.mode = "ask" if self.mode == "auto" else "auto"
             c.print(f"mode: {self._mode_label()}")
+            if self.mode == "auto" and self.jailed:
+                c.print("[dim]  (the sandbox still applies: nothing can write outside the folder)[/dim]")
         elif cmd == "/mode":
-            if rest in ("ask", "auto"):
+            if rest in ("ask", "auto") or (rest == "jail" and self.jailed):
                 self.mode = rest
+            elif rest == "jail":
+                c.print("[dim]the sandbox is off (--no-jail or not Windows)[/dim]")
             c.print(f"mode: {self._mode_label()}")
         elif cmd == "/default":
             if rest in ("ask", "auto"):
@@ -535,8 +577,10 @@ class Jarvis:
                 c.print(f"[red]not a folder:[/red] {target}")
             else:
                 self.workspace = target.resolve()
-                self.agent.toolbox = Toolbox(self.workspace)
+                self.agent.toolbox = self.make_toolbox()
                 c.print(f"[dim]tools now work in {self.workspace}[/dim]")
+                if self.jailed and not self.workspace.is_relative_to(self.jail_root):
+                    c.print(f"[yellow]  read-only there: writes only work inside {self.jail_root}[/yellow]")
         elif cmd == "/model":
             if rest:
                 (self.llm.local.client if isinstance(self.llm, RoutedLLM) else self.llm).model = rest
@@ -706,7 +750,10 @@ def build_parser():
     p.add_argument("--model", default=None, help="Ollama model (default: your saved choice, else forge)")
     p.add_argument("--open", action="store_true", help="use the uncensored model (forge-open) and remember it as the default")
     p.add_argument("--standard", action="store_true", help="go back to the standard model (forge) and remember it")
-    p.add_argument("--workspace", default=".", help="folder the tools work in (default: where you ran jarvis)")
+    p.add_argument("--workspace", default=None, help="folder the tools work in (default: ~/Downloads/jarvis). "
+                   "It is also the only folder jarvis can write to")
+    p.add_argument("--here", action="store_true", help="work in (and be allowed to write to) the current folder instead")
+    p.add_argument("--no-jail", action="store_true", help="turn the write sandbox off (old behaviour: asks before each risky tool)")
     p.add_argument("--temperature", type=float, default=0.3)
     p.add_argument("--turn-timeout", type=int, default=900, help="seconds before a single task is stopped (0 = never)")
     p.add_argument("--llm-mode", choices=["local", "auto", "remote"], default="local", help="use remote APIs too (see REMOTE.md)")
@@ -729,6 +776,8 @@ def main(argv=None):
             except (AttributeError, ValueError):
                 pass
     args = build_parser().parse_args(argv)
+    if args.here:
+        args.workspace = "."
     if args.open or args.standard:
         save_config(model="forge-open" if args.open else "forge")
     args.model = args.model or load_config().get("model", "forge")
@@ -742,7 +791,8 @@ def main(argv=None):
         console.print(f"server  {args.url}  {'[green]ready[/green]' if ok else '[red]' + problem + '[/red]'}")
         console.print(f"model   {args.model}")
         console.print(f"tools   {', '.join(TOOL_NAMES)}")
-        console.print(f"folder  {Path(args.workspace).resolve()}")
+        console.print(f"folder  {Path(args.workspace or default_folder()).resolve()}")
+        console.print(f"jail    {'off' if args.no_jail or not jail.available() else 'on: writes only in the folder'}")
         sys.exit(0 if ok else 1)
     if not ok:
         console.print(f"[red]{problem}[/red]")

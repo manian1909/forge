@@ -50,7 +50,7 @@ def call(name, **args):
 def make_ui(llm, *argv):
     ws = tempfile.mkdtemp()
     (Path(ws) / "hello.txt").write_text("hi")
-    args = build_parser().parse_args(["--workspace", ws, "--no-verify", *argv])
+    args = build_parser().parse_args(["--workspace", ws, "--no-verify", "--no-jail", *argv])
     console = Console(file=io.StringIO(), force_terminal=True, width=100, highlight=False)
     ui = Jarvis(args, console)
     ui.llm = llm
@@ -158,6 +158,21 @@ def test_skill_notes_go_with_the_request_once_and_working_tasks_are_remembered()
     saved = experience.load()
     assert saved and saved[-1]["task"] == "make a csv spreadsheet of a and b"
     assert "recalled a similar task" in text_of(console)                              # the second request found it
+
+
+def test_jailed_jarvis_runs_tools_without_asking_but_cannot_write_elsewhere():
+    ws = tempfile.mkdtemp()
+    outside = Path(tempfile.mkdtemp()) / "no.txt"
+    args = build_parser().parse_args(["--workspace", ws, "--no-verify"])
+    console = Console(file=io.StringIO(), force_terminal=True, width=100, highlight=False)
+    ui = Jarvis(args, console)
+    ui.llm = ui.agent.llm = FakeLLM(call("write_file", path="in.txt", content="ok"),
+                                    call("run_python", code=f"open(r'{outside}', 'w')"), say("done"))
+    ui.console.input = lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not prompt"))
+    assert ui.jailed and ui.mode == "jail"
+    drive(ui, "save a file\r/exit\r")
+    assert (Path(ws) / "in.txt").read_text() == "ok" and not outside.exists()
+    assert "may only write" in text_of(console) or "PermissionError" in text_of(console)
 
 
 if __name__ == "__main__":

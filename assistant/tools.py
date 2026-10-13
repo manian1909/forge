@@ -199,10 +199,15 @@ SHELL_HINTS = [
 
 
 class Toolbox:
-    def __init__(self, workspace="workspace", python_timeout=60, shell_timeout=120, harden=True):
+    def __init__(self, workspace="workspace", python_timeout=60, shell_timeout=120, harden=True, sandbox=None):
+        """``sandbox`` is a folder: with it, code and commands run in a low-integrity process (jail.py) that can read
+        everything but write only there, and write_file refuses paths outside it."""
         self.harden = harden  # path aliases, shell fix-ups and hints, untrusted-content banners
         self.workspace = Path(workspace).resolve()
         self.workspace.mkdir(parents=True, exist_ok=True)
+        self.sandbox = Path(sandbox).resolve() if sandbox else None
+        if self.sandbox:
+            self.sandbox.mkdir(parents=True, exist_ok=True)
         self.python_timeout = python_timeout
         self.shell_timeout = shell_timeout
 
@@ -259,6 +264,8 @@ class Toolbox:
             f.write(code)
             script = f.name
         try:
+            if self.sandbox:
+                return self._jailed([sys.executable, "-B", script], self.python_timeout)
             proc = subprocess.run(
                 [sys.executable, script], cwd=self.workspace, capture_output=True,
                 text=True, timeout=self.python_timeout, encoding="utf-8", errors="replace",
@@ -269,21 +276,45 @@ class Toolbox:
             os.unlink(script)
         return _format_process(proc)
 
+    def _jailed(self, argv, timeout):
+        """Run argv at low integrity: reads anywhere, writes only inside the sandbox, no administrator rights."""
+        from . import jail
+        try:
+            code, out = jail.run_low(argv, self.workspace, jail.sandbox_env(self.sandbox), timeout=timeout)
+        except TimeoutError:
+            return f"Error: timed out after {timeout}s"
+        out = out.replace("\r\n", "\n").rstrip()
+        if code != 0:
+            out += f"\n[exit code {code}]"
+        if re.search(r"Access to the path .* is denied|PermissionError|UnauthorizedAccess", out):
+            out += (f"\n[hint] jarvis can read any folder but may only write inside {self.sandbox}. "
+                    "Save the file there (a relative path does that).")
+        return out or "(no output)"
+
     def run_shell(self, command):
+        if self.sandbox:
+            from . import jail
+            if jail.shell_denied(command):
+                return jail.shell_denied(command)
         if IS_WINDOWS:
             if self.harden:
                 command = command.replace(" && ", "; ")  # Windows PowerShell 5.1 has no &&
+            if self.sandbox:   # UTF-8 output; the try/catch is for hosts without a console
+                command = "try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}; " + command
             argv = ["powershell", "-NoProfile", "-NonInteractive", "-Command", command]
         else:
             argv = ["bash", "-lc", command]
         try:
-            proc = subprocess.run(
-                argv, cwd=self.workspace, capture_output=True, text=True,
-                timeout=self.shell_timeout, encoding="utf-8", errors="replace",
-            )
+            if self.sandbox:
+                out = self._jailed(argv, self.shell_timeout)
+            else:
+                proc = subprocess.run(
+                    argv, cwd=self.workspace, capture_output=True, text=True,
+                    timeout=self.shell_timeout, encoding="utf-8", errors="replace",
+                )
+                out = _format_process(proc)
         except subprocess.TimeoutExpired:
             return f"Error: timed out after {self.shell_timeout}s"
-        out = _format_process(proc)
         if self.harden and re.search(r"Get-ChildItem[^|]*\|\s*Measure-Object\s+-Line", command, re.I):
             out += ("\n[hint] Get-ChildItem | Measure-Object -Line counts files, not the lines inside them. "
                     "To count text lines use (Get-Content file).Count")
@@ -292,8 +323,14 @@ class Toolbox:
     def read_file(self, path):
         return self._resolve(path).read_text(encoding="utf-8", errors="replace")
 
+    def inside_sandbox(self, path):
+        return self.sandbox is None or Path(os.path.realpath(path)).is_relative_to(os.path.realpath(self.sandbox))
+
     def write_file(self, path, content):
         target = self._resolve(path)
+        if not self.inside_sandbox(target):
+            return (f"Error: jarvis may only write inside {self.sandbox}. It can read other folders, but "
+                    f"{target} is outside it. Save the file in the jarvis folder instead (use a relative path).")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
         return f"Wrote {len(content)} chars to {self._display(target)}"
