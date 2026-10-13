@@ -18,6 +18,10 @@ from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.chart import BarChart, LineChart, PieChart, Reference
+from openpyxl.chart.label import DataLabelList
+from openpyxl.chart.marker import DataPoint
+from openpyxl.chart.shapes import GraphicalProperties
+from openpyxl.drawing.line import LineProperties
 from openpyxl.formatting.rule import DataBarRule, FormulaRule
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
@@ -158,8 +162,13 @@ def bars(block, column):
 
 def dashboard(wb, name="Dashboard", title=None):
     ws = wb.create_sheet(name, 0)
+    ws.sheet_view.showGridLines = False
+    for c in range(1, 26):
+        ws.cell(1, c).fill = HEAD_FILL
     ws["A1"] = title or name
-    ws["A1"].font = Font(bold=True, size=16)
+    ws["A1"].font = Font(bold=True, size=18, color="FFFFFF")
+    ws.row_dimensions[1].height = 34
+    ws["A1"].alignment = Alignment(vertical="center")
     ws.column_dimensions["A"].width = 26
     ws.column_dimensions["B"].width = 20
     return ws
@@ -184,30 +193,161 @@ def block_key(block):
 
 
 def kpi(ws, row, label, formula, fmt="General"):
-    ws.cell(row, 1, label).font = Font(bold=True)
-    ws.cell(row, 2, formula).number_format = fmt
+    """A label and its value as a small card: grey caption, big bold number on a light panel."""
+    lab, val = ws.cell(row, 1, label), ws.cell(row, 2, formula)
+    lab.font, lab.fill = Font(color="595959", size=11), PatternFill("solid", fgColor="EAF1F8")
+    val.font, val.fill = Font(bold=True, size=14, color="1F4E79"), PatternFill("solid", fgColor="EAF1F8")
+    val.number_format, val.alignment = fmt, Alignment(horizontal="right")
+    ws.row_dimensions[row].height = 22
 
 
-def chart(ws, kind, title, block, column, anchor, width=15, height=7.5):
-    """kind: bar, line, pie. Plots one column of a summary block against its labels."""
+PALETTE = ["1F77B4", "FF7F0E", "2CA02C", "D62728", "9467BD", "8C564B", "E377C2", "7F7F7F"]
+
+
+def chart(ws, kind, title, block, column, anchor, width=16, height=8.5):
+    """kind: bar, line, pie. Plots a column of a summary block against its labels, with visible axes, colours and labels.
+    ``column`` can be a list, e.g. ["Budget", "Amount"], to draw the columns side by side (a bar chart of budget vs actual)."""
     ch = {"bar": BarChart, "line": LineChart, "pie": PieChart}[kind]()
     ch.title, ch.width, ch.height = title, width, height
-    col = block.col(column)
-    idx = list(block.cols).index(column) + 1
-    ch.add_data(Reference(block.ws, min_col=idx, min_row=block.header_row, max_row=block.last), titles_from_data=True)
+    names = list(column) if isinstance(column, (list, tuple)) else [column]
+    for name in names:
+        block.col(name)
+        idx = list(block.cols).index(name) + 1
+        ch.add_data(Reference(block.ws, min_col=idx, min_row=block.header_row, max_row=block.last), titles_from_data=True)
+    idx = list(block.cols).index(names[0]) + 1
+    column = " / ".join(names)
     ch.set_categories(Reference(block.ws, min_col=1, min_row=block.first, max_row=block.last))
+    ser = ch.series[0]
+    shown = block.ws.cell(block.first, idx).number_format
+    labels = DataLabelList()
+    labels.showSerName = labels.showCatName = labels.showLegendKey = False
+    if kind == "pie":
+        labels.showVal, labels.showPercent = False, True
+        for i in range(block.last - block.first + 1):
+            pt = DataPoint(idx=i)
+            pt.graphicalProperties.solidFill = PALETTE[i % len(PALETTE)]
+            ser.dPt.append(pt)
+        ch.legend.position = "r"
+    else:
+        labels.showVal, labels.showPercent = True, False
+        labels.numFmt = shown if shown != "General" else "#,##0"
+        ch.x_axis.delete = ch.y_axis.delete = False        # openpyxl leaves the axes hidden otherwise (newer Excel then shows none)
+        ch.x_axis.title, ch.y_axis.title = block_key(block), column
+        ch.y_axis.number_format = shown
+        if len(names) == 1:
+            ch.legend = None                                # one series: the title already says what it is
+        else:
+            ch.legend.position = "b"
+        ch.y_axis.majorGridlines.spPr = GraphicalProperties(ln=LineProperties(solidFill="D9D9D9"))
+        for i, one in enumerate(ch.series):
+            color = PALETTE[i % len(PALETTE)]
+            if kind == "bar":
+                one.graphicalProperties.solidFill = color
+            else:
+                one.graphicalProperties.line.solidFill, one.graphicalProperties.line.width = color, 28000
+                one.marker.symbol, one.marker.size, one.smooth = "circle", 7, False
+                one.marker.graphicalProperties = GraphicalProperties(solidFill=color)
+        if kind == "bar":
+            ch.gapWidth = 60
+        else:
+            labels.position = "t"
+    ch.dataLabels = labels
     ws.add_chart(ch, anchor)
-    return col
+    return column
+
+
+def _bake(path):
+    """Store each formula's result in the file, and the plotted numbers inside each chart.
+
+    openpyxl writes formulas with no result. Excel recalculates on open, but previews, phones, Google Drive and
+    LibreOffice show empty cells and empty charts until then. The ``formulas`` package computes the results here.
+    Returns how many results were stored (0 when the package is missing or anything fails: the file is still fine).
+    """
+    try:
+        import formulas
+        solved = formulas.ExcelModel().loads(str(path)).finish().calculate()
+    except Exception:  # noqa: BLE001 - baking is a bonus; never lose the workbook over it
+        return 0
+    import os
+    import zipfile
+    from xml.sax.saxutils import escape
+
+    book = load_workbook(path)
+    names = book.sheetnames
+    values = {ws.title: {c.coordinate: c.value for row in ws.iter_rows() for c in row
+                         if c.value is not None and not (isinstance(c.value, str) and c.value.startswith("="))}
+              for ws in book.worksheets}
+    for key, cell in solved.items():
+        m = re.match(r"'\[.*?\](.+?)'!([A-Z]+\d+)$", key)
+        if not m:
+            continue
+        sheet = next((n for n in names if n.upper() == m.group(1).upper()), None)
+        try:
+            v = cell.value[0][0]
+        except (AttributeError, IndexError, TypeError):
+            continue
+        v = v.item() if hasattr(v, "item") else v
+        if sheet and isinstance(v, (int, float, str, bool)):
+            values[sheet][m.group(2)] = v
+
+    def column_values(ref):
+        m = re.match(r"'?(.+?)'?!\$?([A-Z]+)\$?(\d+)(?::\$?([A-Z]+)\$?(\d+))?$", ref.replace("&apos;", "'"))
+        if not m or (m.group(4) and m.group(4) != m.group(2)):
+            return []
+        sheet, col, r1, _, r2 = m.groups()
+        return [values.get(sheet, {}).get(f"{col}{r}") for r in range(int(r1), int(r2 or r1) + 1)]
+
+    def cache(m):
+        ref = m.group(1)
+        vals = column_values(ref)
+        if not vals or any(v is None for v in vals):
+            return m.group(0)
+        pts = "".join(f'<pt idx="{i}"><v>{escape(str(v))}</v></pt>' for i, v in enumerate(vals))
+        if all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in vals):
+            return f'<numRef><f>{ref}</f><numCache><formatCode>General</formatCode><ptCount val="{len(vals)}"/>{pts}</numCache></numRef>'
+        return f'<strRef><f>{ref}</f><strCache><ptCount val="{len(vals)}"/>{pts}</strCache></strRef>'
+
+    stored = 0
+    tmp = Path(str(path) + ".tmp")
+    with zipfile.ZipFile(path) as zin, zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            sheet_file = re.match(r"xl/worksheets/sheet(\d+)\.xml$", item.filename)
+            if sheet_file and int(sheet_file.group(1)) <= len(names):
+                current = names[int(sheet_file.group(1)) - 1]
+
+                def put(m, current=current):
+                    ref, attrs, formula = m.group(1), m.group(2), m.group(3)
+                    v = values[current].get(ref)
+                    if v is None:
+                        return m.group(0)
+                    attrs = re.sub(r' t="[^"]*"', "", attrs)
+                    if isinstance(v, bool):
+                        return f'<c r="{ref}"{attrs} t="b"><f>{formula}</f><v>{int(v)}</v></c>'
+                    if isinstance(v, str):
+                        return f'<c r="{ref}"{attrs} t="str"><f>{formula}</f><v>{escape(v)}</v></c>'
+                    return f'<c r="{ref}"{attrs}><f>{formula}</f><v>{repr(float(v)) if isinstance(v, float) else v}</v></c>'
+
+                text, n = re.subn(r'<c r="([A-Z]+\d+)"([^>]*)><f>(.*?)</f><v\s*/?>(?:</v>)?</c>', put, data.decode("utf-8"))
+                stored += n
+                data = text.encode("utf-8")
+            elif item.filename.startswith("xl/charts/chart"):
+                data = re.sub(r"<(?:numRef|strRef)><f>(.*?)</f></(?:numRef|strRef)>", cache, data.decode("utf-8")).encode("utf-8")
+            zout.writestr(item, data)
+    os.replace(tmp, path)
+    return stored
 
 
 def save(wb, path):
     """Save, then open the file again and print what is in it (formulas are computed when Excel opens it)."""
     path = Path(path)
     wb.save(path)
+    baked = _bake(path)
     back = load_workbook(path)
     for ws in back.worksheets:
         n = sum(1 for row in ws.iter_rows() for c in row if isinstance(c.value, str) and c.value.startswith("="))
         print(f"saved {path.name} | sheet {ws.title}: {ws.dimensions}, {n} formulas, {len(ws._charts)} charts")
+    print(f"results stored for {baked} formulas, so charts show in previews too" if baked else "(formula results are computed when Excel opens the file)")
     return path
 
 

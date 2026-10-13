@@ -32,8 +32,8 @@ xl.kpi(dash, 5, "Overall margin", "=B4/B3", "0.0%")
 xl.kpi(dash, 6, "Best product (profit)", xl.best(by_p, "Profit"))
 xl.kpi(dash, 7, "Best region (profit)", xl.best(by_r, "Profit"))
 xl.chart(dash, "bar", "Profit by product", by_p, "Profit", "D2")
-xl.chart(dash, "pie", "Profit by region", by_r, "Profit", "D18")
-xl.chart(dash, "line", "Profit by month", by_m, "Profit", "L2")
+xl.chart(dash, "pie", "Profit by region", by_r, "Profit", "D19")
+xl.chart(dash, "line", "Profit by month", by_m, "Profit", "N2")
 xl.save(wb, "sales_analysis.xlsx")
 # check: the answer must name what the DATA says, so compute it again in pandas
 rev = df.Units * df.UnitPrice; prof = rev - df.Units * df.UnitCost

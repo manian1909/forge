@@ -128,3 +128,19 @@ xl.save(wb, "budget.xlsx")
     ws = load_workbook(tmp_path / "budget.xlsx")["Budget"]
     assert ws["D3"].value == "=C3-B3"                     # Remaining = Budget - Amount, per category
     assert ws.conditional_formatting                       # overspent rows are highlighted
+
+
+def test_saved_workbooks_carry_results_and_chart_data_so_previews_are_not_empty(tmp_path):
+    pytest.importorskip("formulas")
+    import zipfile
+    from openpyxl import load_workbook
+    code = re.findall(r"```python\n(.*?)```", skills.load_skills()["excel_budget"].body, re.S)[0]
+    out = run_recipe(tmp_path, code)
+    assert "results stored for" in out
+    path = tmp_path / "expense_tracker.xlsx"
+    dash = load_workbook(path, data_only=True)["Dashboard"]          # what a previewer that does not recalculate reads
+    assert dash["B3"].value == 16011 and dash["B6"].value == "Rent"
+    z = zipfile.ZipFile(path)
+    charts = [z.read(n).decode() for n in z.namelist() if n.startswith("xl/charts/chart")]
+    assert len(charts) == 3 and all("<numCache>" in c and "<strCache>" in c for c in charts)
+    assert charts[0].count("<ser>") == 2 and '<delete val="0"/>' in charts[0]     # budget next to actual, axes switched on
