@@ -1,8 +1,8 @@
 ---
-name: excel_dashboard
-description: Excel with sample data, live formulas, highlights, charts and a dashboard sheet (sales analysis, budget trackers)
-replaces: excel
-triggers: dashboard|pivot|budget|expense tracker|sales analysis|transactions|profit margin|trends?\b
+name: excel_sales
+description: Excel sales analysis with sample data, SUMIFS pivot summaries, charts and a dashboard
+replaces: excel,charts
+triggers: sales|revenue|profit|pivot|products?.*regions?|monthly trends?
 ---
 For a workbook with data + summaries + charts use the helper `forge_office` (already installed). Keep the script SHORT: write it in one run_python call.
 Never type sample rows by hand: generate them with numpy (seed 42) and pandas. Every total is a formula; `{Name}` in a formula means that column in the same row.
@@ -39,9 +39,5 @@ xl.save(wb, "sales_analysis.xlsx")
 rev = df.Units * df.UnitPrice; prof = rev - df.Units * df.UnitCost
 print("best product:", prof.groupby(df.Product).sum().idxmax(), "| best region:", prof.groupby(df.Region).sum().idxmax(), "| margin", f"{prof.sum() / rev.sum():.1%}")
 ```
-Budget / expense tracker: Data columns Date, Description, Category, Method (UPI/Card/Cash), Amount (30 rows, rupees, realistic: rent, mess, transport, data pack, books, fun).
-Then `b = xl.summary(wb, "Budget", "Monthly budget", data, "Category", cats, ["Amount"])`, `xl.add_values(b, "Budget", [..one per category..])`,
-`xl.add_formula(b, "Remaining", "={Budget}-{Amount}")`, `xl.flag(b, "{Remaining}<0")` (highlights overspent rows red; make 2 categories overspend),
-then a dashboard with `xl.chart(dash, "bar", "Spend by category", b, "Amount", "D2")`, a pie of Amount, and KPIs for total spent, total budget, remaining.
-Other helpers: `xl.count(data, "Product")`, `xl.bars(block, col)`, `xl.flag(block, cond, "green"|"yellow")`. A real PivotTable cannot be made from Python: say the pivot is a SUMIFS summary.
-In your reply: name the best product/region printed by the check, never guess them.
+A real PivotTable cannot be made from Python: say the pivot is a SUMIFS summary. In your reply: name the best product/region printed by the check, never guess them.
+Other helpers: `xl.count(data, "Product")`, `xl.bars(block, col)`, `xl.flag(block, cond, "green"|"yellow")`.

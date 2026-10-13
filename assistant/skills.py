@@ -33,7 +33,7 @@ class Skill:
     triggers: re.Pattern
     body: str
     path: Path
-    replaces: str = ""        # a more specific skill that makes this one redundant when both match
+    replaces: str = ""        # names (comma separated) of generic skills this one makes redundant
 
 
 def parse(path):
@@ -71,7 +71,7 @@ def match(text, skills, already=()):
         if hits:
             scored.append((hits, s.name, s))
     picked = [s for _, _, s in sorted(scored, key=lambda x: (-x[0], x[1]))]
-    replaced = {s.replaces for s in picked if s.replaces}
+    replaced = {r.strip() for s in picked for r in s.replaces.split(",") if r.strip()}
     return [s for s in picked if s.name not in replaced][:MAX_PER_TURN]
 
 

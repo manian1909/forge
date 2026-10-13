@@ -76,9 +76,13 @@ def test_failed_tasks_are_not_saved(tmp_path, monkeypatch):
     assert not experience.worked(tool_turn("x", "print(1)", "1"), "(stopped: time limit of 900s reached)")
 
 
-def test_dashboard_skill_replaces_the_basic_excel_one(tmp_path, monkeypatch):
+def test_specific_excel_skills_replace_the_basic_ones(tmp_path, monkeypatch):
     monkeypatch.setenv("FORGE_HOME", str(tmp_path))
-    assert names("make an excel sales analysis with a pivot table and dashboard") == ["excel_dashboard"]
+    sales = ("Generate a workbook containing 200 fictional sales transactions across five products, four regions and six "
+             "months. Calculate revenue, profit and margin, with a pivot table, filters and a dashboard with charts.")
+    budget = ("Create an Excel workbook to track monthly expenses for a college student in India, with a budget and "
+              "a dashboard with charts. Highlight categories that exceed their budgets.")
+    assert names(sales) == ["excel_sales"] and names(budget) == ["excel_budget"]
     assert names("make an excel with my marks") == ["excel"]
 
 
@@ -92,7 +96,7 @@ def run_recipe(tmp_path, code):
 def test_dashboard_formulas_give_the_same_answers_as_pandas(tmp_path, monkeypatch):
     formulas = pytest.importorskip("formulas")
     monkeypatch.setenv("FORGE_HOME", str(tmp_path))
-    code = re.findall(r"```python\n(.*?)```", skills.load_skills()["excel_dashboard"].body, re.S)[0]
+    code = re.findall(r"```python\n(.*?)```", skills.load_skills()["excel_sales"].body, re.S)[0]
     out = run_recipe(tmp_path, code)
     best_product, best_region = re.search(r"best product: (\w+) \| best region: (\w+)", out).groups()
     solved = formulas.ExcelModel().loads(str(tmp_path / "sales_analysis.xlsx")).finish().calculate()
