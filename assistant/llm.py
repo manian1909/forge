@@ -10,6 +10,8 @@ import time
 
 import httpx
 
+from . import toolparse
+
 THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
 
 
@@ -28,8 +30,11 @@ class LLMError(RuntimeError):
 
 class LLMClient:
     def __init__(self, base_url="http://127.0.0.1:8080/v1", model="local", temperature=0.6,
-                 max_tokens=3072, extra_body=None, api_key=None, timeout=600.0):
+                 max_tokens=3072, extra_body=None, api_key=None, timeout=600.0, own_tools=False):
         self.base_url = base_url.rstrip("/")
+        # own_tools: tool definitions go in the system prompt and the calls are read from the reply text here, because the
+        # server's parser throws away a whole call over one badly escaped quote (see toolparse.py). Local models only.
+        self.own_tools = own_tools
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -55,16 +60,25 @@ class LLMClient:
         Returns (message_dict, stats). ``on_token`` is called with each text
         chunk as it arrives so the CLI can print it live.
         """
+        own = self.own_tools and bool(tools)
+        if own:
+            first = messages[0]
+            sent = [dict(first, content=first["content"] + toolparse.tools_block(tools)) if first["role"] == "system"
+                    else {"role": "system", "content": toolparse.tools_block(tools).strip()}] + \
+                   (messages[1:] if first["role"] == "system" else messages)
+        else:
+            sent = messages
+        muffle = toolparse.Muffler(on_token) if own else None
         body = {
             "model": self.model,
-            "messages": messages,
+            "messages": sent,
             "stream": True,
             "stream_options": {"include_usage": True},
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
             **self.extra_body,
         }
-        if tools:
+        if tools and not own:
             body["tools"] = tools
 
         content, tool_calls, finish = [], {}, None
@@ -95,7 +109,9 @@ class LLMClient:
                         first_token_at = time.time()
                     n_chunks += 1
                     content.append(delta["content"])
-                    if on_token:
+                    if muffle:
+                        muffle.feed(delta["content"])
+                    elif on_token:
                         on_token(delta["content"])
                 for tc in delta.get("tool_calls") or []:
                     slot = tool_calls.setdefault(tc.get("index", 0), {"id": "", "name": "", "arguments": ""})
@@ -104,7 +120,15 @@ class LLMClient:
                     slot["name"] += fn.get("name") or ""
                     slot["arguments"] += fn.get("arguments") or ""
 
+        if muffle:
+            muffle.flush()
         text = THINK_RE.sub("", "".join(content)).strip()
+        if own:
+            text, parsed = toolparse.split_calls(text, tools)
+            if finish == "length":
+                parsed = []              # cut off at the token cap: a half-written call must not run as if it were whole
+            for i, c in enumerate(parsed):
+                tool_calls[i] = {"id": f"call_{i}", "name": c["name"], "arguments": json.dumps(c["arguments"], ensure_ascii=False)}
         message = {"role": "assistant", "content": text}
         if tool_calls:
             message["tool_calls"] = [

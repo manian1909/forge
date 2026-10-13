@@ -177,10 +177,10 @@ class RoutedLLM:
 def make_llm(url, model, temperature, mode="local", providers=DEFAULT_PROVIDERS, log=None, think=False):
     """Build a plain LLMClient for local-only use, or a RoutedLLM when remotes are requested."""
     if think:  # let Qwen3 reason before answering: far more tokens, so allow a long reply
-        local = LLMClient(url, model, temperature=temperature, max_tokens=8192,
+        local = LLMClient(url, model, temperature=temperature, max_tokens=8192, own_tools=True,
                           extra_body={"chat_template_kwargs": {"enable_thinking": True}})
     else:
-        local = LLMClient(url, model, temperature=temperature)
+        local = LLMClient(url, model, temperature=temperature, own_tools=True)
     if mode == "local":
         return local
     remotes = load_remotes(providers, temperature=temperature)
