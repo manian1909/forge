@@ -44,7 +44,7 @@ def _lenient_arguments(body, schema):
     props = (schema or {}).get("properties", {})
     args_at = re.search(r'"arguments"\s*:\s*\{', body)
     tail = body[args_at.end():] if args_at else body
-    tail = re.sub(r'\s*\}\s*\}\s*$', "", tail.rstrip())          # the closing braces of arguments and of the call
+    tail = tail.rstrip()
     marks = []
     for key, spec in props.items():
         m = re.search(r'"%s"\s*:\s*"' % re.escape(key), tail)
@@ -55,7 +55,12 @@ def _lenient_arguments(body, schema):
     for n, (start, vstart, key) in enumerate(marks):
         end = marks[n + 1][0] if n + 1 < len(marks) else len(tail)
         raw = tail[vstart:end].rstrip()
-        raw = re.sub(r'",?\s*$', "", raw) if n + 1 < len(marks) else re.sub(r'"\s*$', "", raw)
+        if n + 1 < len(marks):
+            raw = re.sub(r'",?\s*$', "", raw)
+        else:                                                      # last value: drop the closing quote and any braces after it
+            raw = re.sub(r'"[\s}]*$', "", raw)
+            if raw.endswith("\\") and not raw.endswith("\\\\"):      # a lone trailing backslash is a mis-escaped closing quote
+                raw = raw[:-1]
         args[key] = _unescape(raw)
     return args
 

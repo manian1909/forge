@@ -107,3 +107,10 @@ def test_a_reply_cut_off_at_the_token_cap_runs_nothing():
     client.http = httpx.Client(transport=httpx.MockTransport(handler))
     msg, stats = client.chat([{"role": "system", "content": "s"}, {"role": "user", "content": "go"}], tools=TOOL_SCHEMAS)
     assert "tool_calls" not in msg and stats["finish"] == "length"
+
+
+def test_junk_after_the_last_argument_is_trimmed():
+    base = '{"name": "run_python", "arguments": {"code": "print(1)\nx = {}'
+    for tail in ['"}}', '"}}\n', '"}}}', '"}} }', '"}\n}', '\\"}}', '"} }\n</tool_call>', '"}}}}']:
+        _, calls = toolparse.split_calls("<tool_call>\n" + base + tail, TOOL_SCHEMAS)
+        assert calls and calls[0]["arguments"]["code"] == "print(1)\nx = {}", repr(tail)
