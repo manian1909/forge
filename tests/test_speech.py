@@ -98,7 +98,7 @@ def test_speaker_is_silent_when_off_and_stop_drops_queue():
 
 
 def make_ui(tmp_path, monkeypatch):
-    monkeypatch.setattr(tui, "CONFIG_PATH", tmp_path / "config.json")
+    monkeypatch.setenv("FORGE_HOME", str(tmp_path))
     args = tui.build_parser().parse_args(["--workspace", str(tmp_path), "--no-verify"])
     console = Console(file=io.StringIO(), force_terminal=False, width=100, highlight=False)
     ui = tui.Jarvis(args, console)

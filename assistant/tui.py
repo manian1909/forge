@@ -29,6 +29,7 @@ from . import serve, speech
 from .agent import VERIFIED_FOOTER, Agent
 from .prompts import ASSISTANT_NAME
 from .router import RoutedLLM, make_llm
+from .session import Usage, breakdown, compact_messages, context_window, estimate_tokens, forge_home
 from .speech import Speaker, normalise_rate
 from .tools import NEEDS_CONFIRMATION, TOOL_NAMES, Toolbox
 
@@ -40,6 +41,10 @@ HELP = """[bold]Commands[/bold]
   [cyan]/mode ask|auto[/cyan]   choose the permission mode
   [cyan]/default ask|auto[/cyan] the mode jarvis opens in from now on (saved in ~/.forge/config.json)
   [cyan]/reset[/cyan]           forget the conversation   [cyan]/clear[/cyan] clear the screen
+  [cyan]/context[/cyan]         how full the model's context window is, and what fills it
+  [cyan]/compact[/cyan] [focus]  summarise the conversation to free context (happens by itself near the limit)
+  [cyan]/usage[/cyan]           tokens used this session, today and in total
+  [cyan]/undo[/cyan]            forget the last exchange   [cyan]/retry[/cyan] ask the last request again
   [cyan]/ws <folder>[/cyan]     change the working folder the tools use
   [cyan]/model <name>[/cyan]    switch the Ollama model for this session
   [cyan]/remote[/cyan] [cyan]/local[/cyan] [cyan]/backend[/cyan]   force remote APIs, release, show router status (needs providers.json)
@@ -58,12 +63,16 @@ TOOL_INFO = {
 }
 
 
-CONFIG_PATH = Path.home() / ".forge" / "config.json"
+AUTO_COMPACT = 0.85   # compact by itself once the context is this full
+
+
+def config_path():
+    return forge_home() / "config.json"
 
 
 def load_config():
     try:
-        return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+        return json.loads(config_path().read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
@@ -71,8 +80,7 @@ def load_config():
 def save_config(**values):
     cfg = load_config()
     cfg.update(values)
-    CONFIG_PATH.parent.mkdir(exist_ok=True)
-    CONFIG_PATH.write_text(json.dumps(cfg, indent=1), encoding="utf-8")
+    config_path().write_text(json.dumps(cfg, indent=1), encoding="utf-8")
 
 
 class Jarvis:
@@ -90,10 +98,15 @@ class Jarvis:
         self.llm = make_llm(args.url, args.model, args.temperature, args.llm_mode, args.providers,
                             log=lambda m: self.console.print(f"[dim]  [router] {m}[/dim]"))
         self.workspace = Path(args.workspace).resolve()
-        self.agent = Agent(self.llm, Toolbox(self.workspace), confirm=self.confirm, max_steps=14,
+        # history is kept until /compact (or auto-compact) shrinks it; the message cap is only a last resort
+        self.agent = Agent(self.llm, Toolbox(self.workspace), confirm=self.confirm, max_steps=14, max_history=200,
                            verify_code=not args.no_verify, max_seconds=args.turn_timeout or None,
                            no_refuse=not args.allow_refusals)
         self.transcript = []
+        self.usage = Usage()
+        self._window = None
+        self._ratio = 1.0          # real prompt tokens / our estimate, refreshed after every task
+        self.last_request = ""
         cfg = load_config()
         self.speaker = Speaker(cfg.get("voice_engine", "edge"), cfg.get("voice", ""), cfg.get("voice_rate", "+0%"))
         self.speaker.enabled = bool(getattr(args, "speak", False) or cfg.get("speak"))
@@ -214,7 +227,104 @@ class Jarvis:
         return ok
 
     # ------------------------------------------------------------------ one task
+    # ------------------------------------------------------------ context and tokens
+    @property
+    def window(self):
+        if self._window is None:
+            self._window = context_window(self.args.url, self.llm.model)
+        return self._window
+
+    def context_used(self, extra_text=""):
+        """Tokens the next prompt will take: our estimate, scaled by how far off it was on the last real call."""
+        from .tools import TOOL_SCHEMAS
+        parts = breakdown(self.agent.messages, TOOL_SCHEMAS)
+        return round((sum(parts.values()) + estimate_tokens(extra_text)) * self._ratio), parts
+
+    def _calibrate(self):
+        """The last call's prompt was every message except the final reply: compare that with our estimate."""
+        from .tools import TOOL_SCHEMAS
+        if self.usage.last_prompt and len(self.agent.messages) > 1:
+            est = sum(breakdown(self.agent.messages[:-1], TOOL_SCHEMAS).values())
+            if est:
+                self._ratio = min(2.0, max(0.5, self.usage.last_prompt / est))
+
+    def compact(self, instructions="", auto=False):
+        if len(self.agent.messages) <= 2:
+            self.console.print("[dim]nothing to compact yet[/dim]")
+            return False
+        before, _ = self.context_used()
+        self.busy(True, "compacting the conversation")
+        try:
+            messages, stats = compact_messages(self.llm, self.agent.messages, instructions)
+        except KeyboardInterrupt:
+            self.busy(False)
+            self.console.print("[yellow]compact stopped; nothing changed[/yellow]")
+            return False
+        except Exception as e:  # noqa: BLE001
+            self.busy(False)
+            self.console.print(f"[red]compact failed:[/red] {e}")
+            return False
+        self.busy(False)
+        if stats:
+            self.usage.add(stats)
+        self.agent.messages = messages
+        after, _ = self.context_used()
+        why = "context was nearly full, so " if auto else ""
+        self.console.print(f"[magenta]  compacted[/magenta] [dim]{why}the conversation is now a summary: "
+                           f"~{before:,} -> ~{after:,} tokens of {self.window:,}[/dim]")
+        return True
+
+    def show_context(self):
+        used, parts = self.context_used()
+        window = self.window
+        cells = 40
+        colors = ["cyan", "yellow", "green", "magenta", "blue"]
+        bar, i = Text(), 0
+        for (name, n), color in zip(parts.items(), colors):
+            k = round(n * self._ratio * cells / window)
+            k = min(k, cells - i)
+            bar.append("■" * k, style=color)
+            i += k
+        bar.append("□" * (cells - i), style="dim")
+        self.console.print(bar)
+        t = Table.grid(padding=(0, 2))
+        t.add_column()
+        t.add_column(justify="right")
+        t.add_column(justify="right", style="dim")
+        for (name, n), color in zip(parts.items(), colors):
+            n = round(n * self._ratio)
+            t.add_row(f"[{color}]■[/{color}] {name}", f"{n:,}", f"{100 * n / window:.1f}%")
+        t.add_row("[dim]□ free[/dim]", f"{max(0, window - used):,}", f"{100 * max(0, window - used) / window:.1f}%")
+        self.console.print(t)
+        exact = f"last prompt sent: {self.usage.last_prompt:,} tokens (exact)  |  " if self.usage.last_prompt else ""
+        self.console.print(f"[dim]  {self.llm.model}: ~{used:,} / {window:,} tokens ({100 * used / window:.0f}%) "
+                           f"in {len(self.agent.messages)} messages\n  {exact}auto-compact at {int(AUTO_COMPACT * 100)}%, "
+                           f"/compact to do it now[/dim]")
+
+    def show_usage(self):
+        u = self.usage
+        today, alltime, days = u.totals()
+        t = Table(box=None, padding=(0, 2), show_header=True, header_style="bold")
+        for col in ("", "model calls", "prompt (read)", "generated", "total"):
+            t.add_column(col, justify="right" if col else "left")
+        t.add_row("this session", f"{u.calls:,}", f"{u.prompt:,}", f"{u.completion:,}", f"[bold]{u.prompt + u.completion:,}[/bold]")
+        t.add_row("today", f"{today['calls']:,}", f"{today['prompt']:,}", f"{today['completion']:,}", f"{today['prompt'] + today['completion']:,}")
+        t.add_row(f"all time ({days} day{'s' * (days != 1)})", f"{alltime['calls']:,}", f"{alltime['prompt']:,}",
+                  f"{alltime['completion']:,}", f"{alltime['prompt'] + alltime['completion']:,}")
+        self.console.print(t)
+        mins = (time.time() - u.started) / 60
+        speed = f", {u.completion / u.seconds:.1f} tok/s generated on average" if u.seconds else ""
+        self.console.print(f"[dim]  session {mins:.0f} min, biggest prompt {u.peak_prompt:,} of {self.window:,} tokens{speed}. "
+                           f"Local tokens cost nothing; they are counted so you can see the work done.[/dim]")
+        if len(u.by_backend) > 1 or isinstance(self.llm, RoutedLLM):
+            for name, (p, c) in u.by_backend.items():
+                self.console.print(f"[dim]  via {name}: {p:,} prompt + {c:,} generated[/dim]")
+
     def run_task(self, text):
+        used, _ = self.context_used(text)
+        if used > AUTO_COMPACT * self.window and len(self.agent.messages) > 2:
+            self.compact(auto=True)
+        self.last_request = text
         mark = len(self.agent.messages)
         start = time.time()
         self.speaker.stop()
@@ -238,6 +348,9 @@ class Jarvis:
             return None
         self.end_text()
         self.busy(False)
+        for s in stats:
+            self.usage.add(s, s["tokens"] / s["tokens_per_sec"] if s.get("tokens_per_sec") else 0.0)
+        self._calibrate()
         if not self.console.is_terminal:
             self.console.print()
         elif not self._streamed:
@@ -254,6 +367,17 @@ class Jarvis:
         self.console.print()
         return answer
 
+    def undo(self):
+        """Drop the last request and everything after it (tool calls, nudges, the answer)."""
+        msgs = self.agent.messages
+        for i in range(len(msgs) - 1, 0, -1):
+            if msgs[i]["role"] == "user" and not msgs[i]["content"].startswith(("(system note)", "(summary of")):
+                del msgs[i:]
+                if len(self.transcript) >= 2:
+                    del self.transcript[-2:]
+                return True
+        return False
+
     # ---------------------------------------------------------------- slash commands
     def command(self, line):
         """Returns False to quit."""
@@ -268,6 +392,19 @@ class Jarvis:
             self.agent.reset()
             self.transcript.clear()
             c.print("[dim](conversation cleared)[/dim]")
+        elif cmd == "/context":
+            self.show_context()
+        elif cmd == "/compact":
+            self.compact(rest)
+        elif cmd in ("/usage", "/cost"):
+            self.show_usage()
+        elif cmd in ("/undo", "/retry"):
+            if not self.undo():
+                c.print("[dim]nothing to undo[/dim]")
+            elif cmd == "/retry" and self.last_request:
+                self.run_task(self.last_request)
+            else:
+                c.print("[dim](last exchange forgotten)[/dim]")
         elif cmd == "/clear":
             c.clear()
             self.banner()
@@ -453,8 +590,7 @@ class Jarvis:
         from prompt_toolkit.key_binding import KeyBindings
         from prompt_toolkit.styles import Style
 
-        hist = Path.home() / ".forge"
-        hist.mkdir(exist_ok=True)
+        hist = forge_home()
         kb = KeyBindings()
 
         @kb.add("escape", "enter")

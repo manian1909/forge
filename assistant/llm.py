@@ -120,6 +120,7 @@ class LLMClient:
         gen_time = elapsed - (first_token_at - start) if first_token_at and n_chunks > 1 else elapsed
         stats = {
             "time_to_first_token": (first_token_at or time.time()) - start,
+            "prompt_tokens": (usage or {}).get("prompt_tokens", 0),   # what the whole conversation costs to send
             "tokens": gen_tokens,
             "tokens_per_sec": gen_tokens / gen_time if gen_time > 0 else 0.0,
         }

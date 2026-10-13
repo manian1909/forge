@@ -5,11 +5,13 @@
 
 import io
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+os.environ["FORGE_HOME"] = tempfile.mkdtemp()   # keep config, usage and history out of the real ~/.forge
 
 from prompt_toolkit import PromptSession  # noqa: E402
 from prompt_toolkit.input import create_pipe_input  # noqa: E402
@@ -19,7 +21,7 @@ from rich.console import Console  # noqa: E402
 from assistant.tools import Toolbox  # noqa: E402
 from assistant.tui import Jarvis, build_parser  # noqa: E402
 
-STATS = {"tokens": 5, "tokens_per_sec": 5.0, "time_to_first_token": 0.0}
+STATS = {"tokens": 5, "prompt_tokens": 700, "tokens_per_sec": 5.0, "time_to_first_token": 0.0}
 
 
 class FakeLLM:
@@ -54,6 +56,7 @@ def make_ui(llm, *argv):
     ui.llm = llm
     ui.agent.llm = llm
     ui.agent.toolbox = Toolbox(ws)
+    ui._window = 8192
     return ui, console, ws
 
 
@@ -111,6 +114,37 @@ def test_ctrl_c_style_failure_drops_the_half_finished_turn():
     ui, console, _ = make_ui(Boom())
     drive(ui, "do a thing\r/exit\r")
     assert [m["role"] for m in ui.agent.messages] == ["system"] and "stopped" in text_of(console)
+
+
+def test_usage_counts_tokens_and_context_shows_the_window():
+    ui, console, _ = make_ui(FakeLLM(say("hello there"), say("again")))
+    drive(ui, "hi\rhi again\r/usage\r/context\r/exit\r")
+    out = text_of(console)
+    assert ui.usage.calls == 2 and ui.usage.prompt == 1400 and ui.usage.completion == 10
+    assert "this session" in out and "1,410" in out
+    assert "system prompt" in out and "tool definitions" in out and "/ 8,192 tokens" in out
+
+
+def test_compact_replaces_history_with_a_summary():
+    ui, console, _ = make_ui(FakeLLM(say("answer one"), say("- user asked about X\n- answered Y")))
+    drive(ui, "question one\r/compact the numbers\r/exit\r")
+    msgs = ui.agent.messages
+    assert len(msgs) == 3 and "answered Y" in msgs[1]["content"] and "compacted" in text_of(console)
+
+
+def test_auto_compact_before_the_window_overflows():
+    ui, console, _ = make_ui(FakeLLM(say("x" * 100), say("- summary"), say("fresh answer")))
+    ui._window = 500
+    drive(ui, "first\r" + "y" * 1500 + "\r/exit\r")
+    assert "context was nearly full" in text_of(console)
+    assert ui.agent.messages[1]["content"].startswith("(summary") and ui.agent.messages[-1]["content"] == "fresh answer"
+
+
+def test_undo_and_retry():
+    ui, console, _ = make_ui(FakeLLM(say("first"), say("second"), say("third")))
+    drive(ui, "one\rtwo\r/retry\r/undo\r/exit\r")
+    contents = [m["content"] for m in ui.agent.messages[1:]]
+    assert contents == ["one", "first"]   # /retry replaced "second" with "third", then /undo dropped that exchange
 
 
 if __name__ == "__main__":
