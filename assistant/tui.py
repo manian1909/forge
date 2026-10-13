@@ -12,6 +12,7 @@ searching are automatic. /auto switches to fully autonomous.
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -26,8 +27,9 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
-from . import experience, jail, serve, skills, speech
+from . import experience, jail, serve, skills, speech, tasks
 from .agent import VERIFIED_FOOTER, Agent
+from .governor import GovernedLLM, Governor, free_mb
 from .prompts import ASSISTANT_NAME
 from .router import RoutedLLM, make_llm
 from .session import Usage, breakdown, compact_messages, context_window, estimate_tokens, forge_home
@@ -57,6 +59,10 @@ HELP = """[bold]Commands[/bold]
   [cyan]/stats[/cyan]           toggle the speed line after each answer
   [cyan]/tools[/cyan]           list what the model can do
   [cyan]/key[/cyan] [NAME value]  list or save API keys for http_request (the model only sees {{NAME}}); [cyan]/key -NAME[/cyan] deletes
+  [cyan]/bg <task>[/cyan]       hand a long task to the standby worker: it pauses while your games/apps need the memory
+                   and resumes from its last step, even after a restart. [cyan]/jobs[/cyan] [n] list or show, [cyan]/cancel n[/cyan]
+  [cyan]/standby[/cyan]         memory sharing status; [cyan]/standby on|off[/cyan] start the worker at login;
+                   [cyan]/standby heavy <app.exe>[/cyan] always pause while that app runs ([cyan]-app.exe[/cyan] removes)
   [cyan]/save <file>[/cyan]     save the conversation as markdown
   [cyan]/exit[/cyan]            quit (or Ctrl+D)
 [bold]Keys[/bold]  Enter send, Alt+Enter new line, Ctrl+C stops the current task, Up/Down history"""
@@ -70,6 +76,14 @@ TOOL_INFO = {
 
 AUTO_COMPACT = 0.85   # compact by itself once the context is this full
 JAIL_TOOLS = {"run_python", "run_shell", "write_file"}   # run without asking while they are jailed to the folder
+
+
+STANDBY = {"pause_mb": 1200, "resume_mb": 4800, "settle": 30, "heavy": [], "fullscreen": True}
+
+
+def standby_settings():
+    """Memory-sharing settings (config.json "standby"): pause below pause_mb free, resume at resume_mb (the model needs ~3.7 GB)."""
+    return {**STANDBY, **load_config().get("standby", {})}
 
 
 def default_folder():
@@ -112,10 +126,16 @@ class Jarvis:
                             log=lambda m: self.console.print(f"[dim]  [router] {m}[/dim]"))
         self.workspace = Path(args.workspace or default_folder()).resolve()
         self.setup_jail(args)
+        # the agent's replies go through the governor: they pause while other programs need the memory (governor.py)
+        st = standby_settings()
+        worker = getattr(args, "worker", False)
+        self.governor = Governor(args.url, args.model, pause_mb=st["pause_mb"], resume_mb=st["resume_mb"], heavy=st["heavy"],
+                                 settle=st["settle"] if worker else 10,
+                                 fullscreen=st["fullscreen"] and worker,   # you are looking at jarvis itself when it is in front
+                                 say=lambda m: self.console.print(f"[yellow]  {m}[/yellow]"))
+        self.agent_llm = self.llm if getattr(args, "no_governor", False) else GovernedLLM(self.llm, self.governor, on_pause=self.on_pause)
         # history is kept until /compact (or auto-compact) shrinks it; the message cap is only a last resort
-        self.agent = Agent(self.llm, self.make_toolbox(), confirm=self.confirm, max_steps=14, max_history=200,
-                           verify_code=not args.no_verify, max_seconds=args.turn_timeout or None,
-                           no_refuse=not args.allow_refusals)
+        self.agent = self.make_agent()
         self.transcript = []
         self.usage = Usage()
         self._window = None
@@ -146,6 +166,17 @@ class Jarvis:
         self.jailed, self.jail_root = True, root
         if not args.yes and load_config().get("mode") != "ask" and not args.ask:
             self.mode = "jail"
+
+    def make_agent(self, background=False):
+        """A background task has nobody to answer prompts (jailed tools still run) and no time limit: it must finish."""
+        return Agent(self.agent_llm, self.make_toolbox(), confirm=self.auto_runs if background else self.confirm,
+                     max_steps=14, max_history=200, verify_code=not self.args.no_verify,
+                     max_seconds=None if background else self.args.turn_timeout or None, no_refuse=not self.args.allow_refusals)
+
+    def on_pause(self, reason):
+        self.end_text()
+        self.busy(False)
+        self.console.print("[dim]  (the part of the reply written so far is dropped and written again after the pause)[/dim]")
 
     def make_toolbox(self):
         return Toolbox(self.workspace, sandbox=self.jail_root if self.jailed else None)
@@ -585,7 +616,17 @@ class Jarvis:
             if rest:
                 (self.llm.local.client if isinstance(self.llm, RoutedLLM) else self.llm).model = rest
                 self.llm.model = rest
+                self.governor.model = rest
             c.print(f"[dim]model: {self.llm.model}[/dim]")
+        elif cmd == "/bg":
+            self.background(rest)
+        elif cmd == "/jobs":
+            self.show_jobs(rest)
+        elif cmd == "/cancel":
+            t = tasks.find(rest) if rest else None
+            c.print(f"[dim]cancelled {t['id']}[/dim]" if t and tasks.cancel(t["id"]) else "[dim]no open task with that number (/jobs lists them)[/dim]")
+        elif cmd == "/standby":
+            self.standby_command(rest)
         elif cmd in ("/remote", "/local", "/backend"):
             if not isinstance(self.llm, RoutedLLM):
                 c.print("[dim]no remote providers configured (see REMOTE.md); start with --llm-mode auto after adding providers.json[/dim]")
@@ -601,6 +642,72 @@ class Jarvis:
         else:
             c.print(f"[red]unknown command[/red] {cmd}. /help lists them.")
         return True
+
+    # ------------------------------------------------------------------ background tasks
+    def background(self, text):
+        c = self.console
+        if not text:
+            c.print("[dim]usage: /bg <task>. It runs in the standby worker and survives games, low memory and restarts.[/dim]")
+            return
+        task = tasks.add(text)
+        pid = tasks.start_worker(self.worker_args())
+        n = len(tasks.all_tasks())
+        c.print(f"[green]  queued[/green] [dim]as #{n} ({task['id']}); the worker (pid {pid}) is on it. /jobs shows progress; "
+                f"the answer also lands in {default_folder() / 'results'}[/dim]")
+
+    def worker_args(self):
+        return worker_args(self.args, self.llm.model)
+
+    def show_jobs(self, rest):
+        c, rows = self.console, tasks.all_tasks()
+        if rest:
+            t = tasks.find(rest)
+            if not t:
+                c.print("[dim]no such task[/dim]")
+                return
+            c.print(f"[bold]{t['id']}[/bold] [dim]{t['status']}, {len(t['messages'])} messages saved, paused {t['pauses']}x "
+                    f"({t['paused_s'] / 60:.0f} min)[/dim]\n{t['prompt']}")
+            for line in t["log"][-12:]:
+                c.print(f"[dim]  {line}[/dim]")
+            if t["answer"]:
+                c.print(Markdown(t["answer"]))
+            return
+        if not rows:
+            c.print("[dim]no background tasks. /bg <task> adds one.[/dim]")
+            return
+        colour = {"done": "green", "running": "cyan", "queued": "yellow", "failed": "red", "cancelled": "dim"}
+        for i, t in enumerate(rows, 1):
+            last = t["log"][-1][9:70] if t["log"] else ""
+            c.print(f" {i:>2}  [{colour.get(t['status'], 'white')}]{t['status']:<9}[/] {t['prompt'][:60]:<60} [dim]{last}[/dim]")
+        pid = tasks.worker_pid()
+        c.print(f"[dim]  worker {'running (pid %d)' % pid if pid else 'not running'}. /jobs <n> shows one, /cancel <n> stops one.[/dim]")
+
+    def standby_command(self, rest):
+        c, st = self.console, standby_settings()
+        words = rest.split()
+        if words[:1] in (["on"], ["off"]):
+            f = tasks.set_autostart(words[0] == "on")
+            c.print(f"[dim]the worker now starts when you log in ({f})[/dim]" if f else "[dim]the worker no longer starts at login[/dim]")
+            if f:
+                tasks.start_worker(self.worker_args())
+            return
+        if words[:1] == ["heavy"] and len(words) == 2:
+            app = words[1].lower()
+            heavy = [h for h in st["heavy"] if h != app.lstrip("-")]
+            if not app.startswith("-"):
+                heavy.append(app if app.endswith(".exe") else app + ".exe")
+            save_config(standby={**load_config().get("standby", {}), "heavy": heavy})
+            self.governor.heavy = {h.lower() for h in heavy}
+            st["heavy"] = heavy
+        free = free_mb() or 0
+        reason = self.governor.busy_reason()
+        c.print(f"[bold]memory sharing[/bold]  free RAM now {free / 1024:.1f} GB" + (f"  [yellow]({reason})[/yellow]" if reason else ""))
+        c.print(f"[dim]  pause when free RAM < {st['pause_mb'] / 1024:.1f} GB, a full-screen app is in front (background tasks), "
+                f"or one of these runs: {', '.join(st['heavy']) or 'none set'}\n"
+                f"  resume when {st['resume_mb'] / 1024:.1f} GB is free for {st['settle']}s; while paused the model is unloaded "
+                f"(its ~3.7 GB RAM and the GPU go to your app)\n"
+                f"  worker: {'running' if tasks.worker_pid() else 'not running'}, starts at login: "
+                f"{'yes' if tasks.startup_file().exists() else 'no'}  (/standby on|off, /standby heavy game.exe)[/dim]")
 
     # ------------------------------------------------------------------ voice
     def speak_command(self, rest):
@@ -740,6 +847,39 @@ class Jarvis:
             enable_history_search=True, multiline=False)
 
 
+def worker_args(args, model):
+    """The flags a background worker needs to work like this session (same server, model, folder, sandbox)."""
+    out = ["--url", args.url, "--model", model]
+    if args.workspace:
+        out += ["--workspace", str(Path(args.workspace).resolve())]
+    return out + (["--no-jail"] if args.no_jail else [])
+
+
+def run_worker(args):
+    """`jarvis --worker`: the standby loop. Its output goes to ~/.forge/tasks/worker.log."""
+    log = open(tasks.log_path(), "a", encoding="utf-8", buffering=1)
+    console = Console(file=log, highlight=False, width=140, force_terminal=False, color_system=None)
+    say = lambda m: console.print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {m}")
+    ui = Jarvis(args, console)
+    ui.governor.say = say
+    if ui.jailed and not args.yes:
+        ui.mode = "jail"            # code, commands and files run without asking, but only inside the jarvis folder
+
+    def ensure():
+        ok, problem = serve.ensure_ready(args.url, args.model, say=say, start=not args.no_start)
+        if not ok:
+            raise RuntimeError(problem)
+
+    say(f"worker started (pid {os.getpid()}), mode {ui.mode}, model {args.model}")
+    try:
+        done = tasks.work(lambda: ui.make_agent(background=True), lambda t: ui.hints_for(t)[0], say,
+                          results_dir=default_folder() / "results", once=args.until_empty, idle=ui.governor.unload, ensure=ensure)
+    except KeyboardInterrupt:
+        done = []
+    say(f"worker stopped after {len(done)} task(s)")
+    return done
+
+
 def build_parser():
     p = argparse.ArgumentParser(prog="jarvis", description="Terminal agent for your local Forge model.")
     p.add_argument("prompt", nargs="*", help="a task to start with")
@@ -763,6 +903,11 @@ def build_parser():
     p.add_argument("--no-start", action="store_true", help="do not start Ollama automatically")
     p.add_argument("--stats", action="store_true", help="show tokens/s after each answer")
     p.add_argument("--speak", action="store_true", help="read answers aloud (same as typing /speak)")
+    p.add_argument("--bg", action="store_true", help="queue the task for the standby worker instead of running it now")
+    p.add_argument("--jobs", action="store_true", help="list background tasks and exit")
+    p.add_argument("--worker", action="store_true", help="run the standby worker: work through queued tasks, sharing memory with your apps")
+    p.add_argument("--until-empty", action="store_true", help="with --worker: exit when the queue is empty")
+    p.add_argument("--no-governor", action="store_true", help="never pause for other programs (memory sharing off)")
     p.add_argument("--check", action="store_true", help="check the setup and exit")
     p.add_argument("--version", action="version", version=f"jarvis {VERSION}")
     return p
@@ -784,6 +929,22 @@ def main(argv=None):
     if load_config().get("mode") == "auto" and not args.ask:
         args.yes = True  # your saved default (/default auto)
     console = Console(highlight=False)
+    if args.jobs:
+        Jarvis.show_jobs(argparse.Namespace(console=console), "")
+        return
+    if args.bg:
+        task = " ".join(args.prompt).strip() or (sys.stdin.read().strip() if not sys.stdin.isatty() else "")
+        if not task:
+            console.print("[red]no task given[/red]")
+            sys.exit(2)
+        t = tasks.add(task)
+        pid = tasks.start_worker(worker_args(args, args.model))
+        console.print(f"queued {t['id']}; worker pid {pid}. `jarvis --jobs` shows progress; the answer lands in "
+                      f"{default_folder() / 'results'}")
+        return
+    if args.worker:
+        run_worker(args)
+        return
 
     with console.status("[dim]checking the model server...[/dim]") if console.is_terminal else _Null() as st:
         ok, problem = serve.ensure_ready(args.url, args.model, say=lambda m: console.print(f"[dim]{m}[/dim]"), start=not args.no_start)

@@ -35,6 +35,7 @@ class LLMClient:
         # own_tools: tool definitions go in the system prompt and the calls are read from the reply text here, because the
         # server's parser throws away a whole call over one badly escaped quote (see toolparse.py). Local models only.
         self.own_tools = own_tools
+        self.on_chunk = None       # called for every streamed line; the governor uses it to stop a reply mid-way
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -93,6 +94,8 @@ class LLMClient:
             for line in resp.iter_lines():
                 if deadline and time.time() > deadline:
                     raise TurnTimeout()
+                if self.on_chunk:
+                    self.on_chunk()
                 if not line.startswith("data:"):
                     continue
                 payload = line[5:].strip()

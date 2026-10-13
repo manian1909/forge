@@ -134,6 +134,7 @@ class Agent:
         self.nudge, self.guard, self.faithful, self.verify_code = nudge, guard, faithful, verify_code
         self.no_refuse = no_refuse
         self.max_seconds = max_seconds  # hard wall-clock limit for one run() call; None means unlimited
+        self.journal = None             # journal(messages) is called before every model call, so a task can be resumed
         self.reset()
 
     def reset(self):
@@ -214,6 +215,26 @@ class Agent:
         """
         self.messages.append({"role": "user", "content": f"{user_text}\n\n{hints}" if hints else user_text})
         self._trim_history()
+        return self._loop(user_text, on_token, on_tool, on_result, on_verify, on_retry)
+
+    def resume(self, user_text, messages, on_token=None, on_tool=None, on_result=None, on_verify=None, on_retry=None):
+        """Carry on with a task from a saved conversation (see journal). ``user_text`` is the original request.
+
+        A reply whose tool calls did not all get results is dropped and asked for again, so no call runs twice.
+        """
+        self.messages = [dict(m) for m in messages]
+        last_call = max((i for i, m in enumerate(self.messages) if m.get("tool_calls")), default=None)
+        if last_call is not None:
+            ids = {c["id"] for c in self.messages[last_call]["tool_calls"]}
+            answered = {m.get("tool_call_id") for m in self.messages[last_call + 1:] if m["role"] == "tool"}
+            if not ids <= answered:
+                del self.messages[last_call:]
+        last = self.messages[-1]
+        if last["role"] == "assistant" and not last.get("tool_calls") and last.get("content"):
+            return last["content"], []                     # it had already finished
+        return self._loop(user_text, on_token, on_tool, on_result, on_verify, on_retry)
+
+    def _loop(self, user_text, on_token, on_tool, on_result, on_verify, on_retry):
         all_stats = []
         used_tools, tainted, last_run = False, False, None
         nudges = faith_nudges = verify_rounds = 0
@@ -227,8 +248,14 @@ class Agent:
         wrote_code = False
         wants_code = bool(WANTS_CODE_RE.search(user_text))
         steps, budget = 0, self.max_steps   # checks add to the budget so they never starve the real work
+        paused_before = getattr(self.llm, "waited", 0.0)
         while steps < budget:
             steps += 1
+            if deadline:   # time spent paused for other apps (governor.py) is not counted
+                deadline += getattr(self.llm, "waited", 0.0) - paused_before
+                paused_before = getattr(self.llm, "waited", 0.0)
+            if self.journal:
+                self.journal(self.messages)
             try:
                 message, stats = self.llm.chat(self.messages, tools=TOOL_SCHEMAS, on_token=on_token,
                                                **({"deadline": deadline} if deadline else {}))
@@ -330,6 +357,6 @@ class Agent:
                 if on_result:
                     on_result(name, result)
                 self.messages.append({"role": "tool", "tool_call_id": call["id"], "content": result})
-            if deadline and time.time() > deadline:
+            if deadline and time.time() > deadline + getattr(self.llm, "waited", 0.0) - paused_before:
                 return f"(stopped: time limit of {int(self.max_seconds)}s reached)", all_stats
         return "(stopped: too many tool steps in a row)", all_stats
