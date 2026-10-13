@@ -78,7 +78,10 @@ AUTO_COMPACT = 0.85   # compact by itself once the context is this full
 JAIL_TOOLS = {"run_python", "run_shell", "write_file"}   # run without asking while they are jailed to the folder
 
 
-STANDBY = {"pause_mb": 1200, "resume_mb": 4800, "settle": 30, "heavy": [], "fullscreen": True}
+# Genshin holds ~3 GB but free RAM alone stayed above the pause line in a test, so known games are listed by name and
+# anything else that keeps the GPU busy (gpu_pct, from nvidia-smi) counts as a game too.
+STANDBY = {"pause_mb": 1200, "resume_mb": 4800, "settle": 30, "heavy": ["GenshinImpact.exe", "YuanShen.exe"],
+           "fullscreen": True, "gpu_pct": 15}
 
 
 def standby_settings():
@@ -130,7 +133,7 @@ class Jarvis:
         st = standby_settings()
         worker = getattr(args, "worker", False)
         self.governor = Governor(args.url, args.model, pause_mb=st["pause_mb"], resume_mb=st["resume_mb"], heavy=st["heavy"],
-                                 settle=st["settle"] if worker else 10,
+                                 settle=st["settle"] if worker else 10, gpu_pct=st["gpu_pct"],
                                  fullscreen=st["fullscreen"] and worker,   # you are looking at jarvis itself when it is in front
                                  say=lambda m: self.console.print(f"[yellow]  {m}[/yellow]"))
         self.agent_llm = self.llm if getattr(args, "no_governor", False) else GovernedLLM(self.llm, self.governor, on_pause=self.on_pause)
@@ -702,8 +705,8 @@ class Jarvis:
         free = free_mb() or 0
         reason = self.governor.busy_reason()
         c.print(f"[bold]memory sharing[/bold]  free RAM now {free / 1024:.1f} GB" + (f"  [yellow]({reason})[/yellow]" if reason else ""))
-        c.print(f"[dim]  pause when free RAM < {st['pause_mb'] / 1024:.1f} GB, a full-screen app is in front (background tasks), "
-                f"or one of these runs: {', '.join(st['heavy']) or 'none set'}\n"
+        c.print(f"[dim]  pause when free RAM < {st['pause_mb'] / 1024:.1f} GB, another program keeps the GPU over {st['gpu_pct']}% busy, "
+                f"a full-screen app is in front (background tasks), or one of these runs: {', '.join(st['heavy']) or 'none set'}\n"
                 f"  resume when {st['resume_mb'] / 1024:.1f} GB is free for {st['settle']}s; while paused the model is unloaded "
                 f"(its ~3.7 GB RAM and the GPU go to your app)\n"
                 f"  worker: {'running' if tasks.worker_pid() else 'not running'}, starts at login: "

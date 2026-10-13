@@ -100,10 +100,12 @@ model does these tasks on its own.
 `/bg <task>` (or `jarvis --bg "task"`) hands a task to the standby worker, a hidden background process. Your games
 and apps come first:
 
-- When free RAM drops below 1.2 GB, a full-screen app is in front, or an app on your list runs (`/standby heavy
-  game.exe`), the worker stops the reply it is writing and tells Ollama to unload the model. That hands about 3.7 GB of
+- When free RAM drops below 1.2 GB, another program keeps the NVIDIA GPU over 15% busy for about 10 s (any game,
+  read from `nvidia-smi`), a full-screen app is in front, or an app on your list runs (Genshin is on it by default;
+  `/standby heavy game.exe` adds one), the worker stops the reply it is writing and tells Ollama to unload the model. That hands about 3.7 GB of
   RAM and the GPU back to your app.
-- When 4.8 GB is free and things have stayed calm for 30 s, the model loads again and the task carries on.
+- When 4.8 GB is free and things have stayed calm for 30 s, the model loads again and the task carries on. If it has
+  to pause again within 5 minutes, it waits twice as long each time (up to 16 min), so it never ping-pongs.
 - Before every model call, the whole conversation is saved to `~/.forge/tasks/<id>.json`. A pause, a crash, a killed
   process or a reboot only loses the reply being written. The next start resumes from the last finished step, and no
   tool call runs twice.

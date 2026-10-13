@@ -44,6 +44,44 @@ def test_reasons_to_pause():
     assert g.busy_reason() is None and g.busy_reason(need_mb=4800)
 
 
+def test_a_game_not_on_the_list_is_noticed_by_its_gpu_use():
+    g = governor((8000, set(), False, {"chrome.exe": 40}),          # one burst (a video starting) is not enough
+                 (8000, set(), False, {"chrome.exe": 3, "game2.exe": 70}),
+                 (8000, set(), False, {"game2.exe": 65}),
+                 (8000, set(), False, {}))
+    assert g.busy_reason() is None and g.busy_reason() is None
+    assert g.busy_reason() == "game2.exe is using the GPU (65%)"
+    assert g.busy_reason() is None                                    # closed
+
+
+def test_pmon_rows_are_read_by_program():
+    text = ("# gpu         pid   type     sm    mem    enc    dec    jpg    ofa    command\n"
+            "# Idx           #    C/G      %      %      %      %      %      %    name\n"
+            "    0       9072   C+G      -      -      -      -      -      -    msedgewebview2.e\n"
+            "    0      23128   C+G     21      4      -      -      -      -    python.exe\n"
+            "    0      31337   C+G     88     40      -      -      -      -    GenshinImpact.e\n"
+            "    0        555   C       50     10      -      -      -      -    ollama.exe\n")
+    names = {23128: "python.exe", 31337: "genshinimpact.exe", 555: "ollama.exe"}
+    from assistant.governor import parse_pmon
+    assert parse_pmon(text, {"ollama.exe"}, names.get) == {"python.exe": 21, "genshinimpact.exe": 88}
+
+
+def test_pausing_again_right_after_resuming_waits_longer_each_time():
+    clock = {"t": 1000.0}
+    import assistant.governor as gov
+    real_time = gov.time.time
+    gov.time.time = lambda: clock["t"]
+    try:
+        g = Governor("http://x/v1", "forge", settle=30, probe=lambda: (8000, set(), False),
+                     sleep=lambda s: clock.__setitem__("t", clock["t"] + s))
+        waits = [g.wait_for_room("low RAM") for _ in range(3)]          # three pauses back to back
+        clock["t"] += 600
+        waits.append(g.wait_for_room("low RAM"))                         # a pause long after the last resume
+    finally:
+        gov.time.time = real_time
+    assert waits == [30, 60, 120, 30]
+
+
 class Streamy:
     """A client that streams two pieces and checks the governor between them, like LLMClient does."""
     model = "forge"

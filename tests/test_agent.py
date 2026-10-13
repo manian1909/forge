@@ -220,3 +220,13 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             fn()
             print("ok", name)
+
+
+def test_an_answer_that_leaves_out_the_numbers_it_was_asked_for_is_sent_back():
+    # the script printed the count, the reply only explained the sieve and repeated the user's own "50,000"
+    task = "Find all primes below 50000 with a sieve, run it, and tell me how many there are and the largest one."
+    llm = Script(call("run_python", code="print('Number of primes below 50000: 5133')\nprint('Largest: 49999')"),
+                 say("The sieve of Eratosthenes starts at 2 and works well up to 50,000."),
+                 say("There are 5,133 primes below 50,000; the largest is 49,999."))
+    out, _ = Agent(llm, Toolbox(tempfile.mkdtemp()), confirm=None).run(task)
+    assert "5,133" in out and "does not match" in llm.seen[2][-1]["content"]

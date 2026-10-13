@@ -84,6 +84,8 @@ NUDGE_UNWRITTEN = ("(system note) You said you changed {files}, but that file wa
                    "is not saved anywhere. Use write_file to actually change it, then run the real test and report the result.")
 NUDGE_REPEAT = ("You already ran exactly this and it failed:\n{error}\nDo not resubmit it unchanged. Find the cause in the error "
                 "and change the logic, or ask the user.")
+ASKS_NUMBER_RE = re.compile(r"\b(how (many|much|long|far|old)|count|total|sum|average|largest|smallest|biggest|maximum|minimum|"
+                            r"what (is|was) the (number|value|result))\b", re.I)
 CLAIM_VERB_RE = re.compile(r"\b(fixed|updated|created|saved|wrote|written|modified|edited|changed|replaced)\b", re.I)
 NEGATION_RE = re.compile(r"\b(not|n't|never|will|would|should|could|can|need|needs|let's|let me|going to|if|once)\b", re.I)
 FILE_RE = re.compile(r"[\w][\w./\\-]*\.(?:py|txt|md|json|csv|ini|js|ts|html|css|ya?ml|toml|cfg|log|sh|ps1|pdf|xlsx|docx|pptx|png|jpg|svg)\b", re.I)
@@ -162,7 +164,7 @@ class Agent:
             return NUDGE_ACT
         return None
 
-    def _unfaithful(self, text, last_run, before=None, wants_action=False):
+    def _unfaithful(self, text, last_run, before=None, wants_action=False, user_text=""):
         """Note to send when the answer ignores the last tool result or claims a file change that never happened."""
         if not self.faithful:
             return None
@@ -177,8 +179,10 @@ class Agent:
             return NUDGE_NO_PRINT
         named_in_both = {f.lower() for f in FILE_RE.findall(result)} & {f.lower() for f in FILE_RE.findall(text)}
         if tool_succeeded(result) and len(result) < 400 and not named_in_both:   # "saved x.xlsx ... A1:C7" vs "x.xlsx with 6 rows" is fine
-            out, ans = _numbers(result), _numbers(text)
-            if out and ans and not (out & ans):
+            # numbers the user wrote ("primes below 50000") prove nothing, so only the tool's own findings count
+            asked = _numbers(user_text)
+            out, ans = _numbers(result) - asked, _numbers(text) - asked
+            if out and not (out & ans) and (ans or ASKS_NUMBER_RE.search(user_text)):
                 return NUDGE_MISMATCH.format(output=result.strip()[:300])
         return None
 
@@ -280,7 +284,7 @@ class Agent:
                     if on_retry:
                         on_retry({NUDGE_REFUSAL: "that reply was a refusal", NUDGE_EMPTY: "that reply was empty", NUDGE_CUT: "that reply was cut off (too long)"}.get(note, "that reply stopped early"))
                     continue
-                note = self._unfaithful(text, last_run, before, user_wants_action) if faith_nudges < 2 else None
+                note = self._unfaithful(text, last_run, before, user_wants_action, user_text) if faith_nudges < 2 else None
                 if note is not None:
                     faith_nudges += 1
                     self.messages.append({"role": "user", "content": note})
