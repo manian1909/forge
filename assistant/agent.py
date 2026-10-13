@@ -23,6 +23,7 @@ from .tools import (DISPLAY_ONLY_MSG, FILE_VIA_SHELL_MSG, TOOL_SCHEMAS, display_
 # "Let me run it:" with no tool call behind it means the model stopped one step early
 ANNOUNCE_RE = re.compile(r"\b(let me|let's|i'll|i will|i'm going to|i am going to|now i'll|next,? i'll)\b(?! know)", re.I)
 NUDGE_EMPTY = "(system note) Your reply was empty. Answer the user's request now."
+NUDGE_CUT = ("(system note) Your last reply was cut off because it was too long, so nothing ran. Do the job in smaller steps: write a short script (under 40 lines) that does one part, run it, then continue. Use the helper module named in the notes if there is one.")
 NUDGE_ACT = "(system note) You described an action but did not perform it. Call the tool now, then report the real result."
 # The owner wants warnings, not denials: a reply that opens with a refusal gets one push to answer anyway.
 REFUSAL_RE = re.compile(r"\b(i can(?:'|\u2019)?t|i cannot|i(?:'|\u2019)?m not (?:able|capable|allowed)|i am not (?:able|capable|allowed)|"
@@ -148,11 +149,11 @@ class Agent:
             self.messages = [self.messages[0]] + tail
 
     # ------------------------------------------------------------ safety nets
-    def _nudge_for(self, text, used_tools, nudges):
+    def _nudge_for(self, text, used_tools, nudges, cut=False):
         if not self.nudge or nudges >= 2:
             return None
         if not text.strip():
-            return NUDGE_EMPTY
+            return NUDGE_CUT if cut else NUDGE_EMPTY
         if self.no_refuse and not used_tools and is_refusal(text):
             return NUDGE_REFUSAL
         tail = text.strip()[-250:]
@@ -244,13 +245,13 @@ class Agent:
                     self.messages[-1]["content"] = final
                     return final, all_stats
                 pending = None
-                note = self._nudge_for(text, used_tools, nudges)
+                note = self._nudge_for(text, used_tools, nudges, cut=stats.get("finish") == "length")
                 if note is not None:
                     nudges += 1
                     budget += 1
                     self.messages.append({"role": "user", "content": note})
                     if on_retry:
-                        on_retry({NUDGE_REFUSAL: "that reply was a refusal", NUDGE_EMPTY: "that reply was empty"}.get(note, "that reply stopped early"))
+                        on_retry({NUDGE_REFUSAL: "that reply was a refusal", NUDGE_EMPTY: "that reply was empty", NUDGE_CUT: "that reply was cut off (too long)"}.get(note, "that reply stopped early"))
                     continue
                 note = self._unfaithful(text, last_run, before, user_wants_action) if faith_nudges < 2 else None
                 if note is not None:

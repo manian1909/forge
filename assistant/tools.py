@@ -17,6 +17,7 @@ import tempfile
 from pathlib import Path
 
 MAX_OUTPUT = 4000
+PYLIB = Path(__file__).resolve().parent / "pylib"   # helper modules the model can import (forge_office)
 IS_WINDOWS = platform.system() == "Windows"
 SHELL_NAME = "PowerShell" if IS_WINDOWS else "bash"
 
@@ -266,8 +267,9 @@ class Toolbox:
         try:
             if self.sandbox:
                 return self._jailed([sys.executable, "-B", script], self.python_timeout)
+            env = {**os.environ, "PYTHONPATH": os.pathsep.join(p for p in (str(PYLIB), os.environ.get("PYTHONPATH", "")) if p)}
             proc = subprocess.run(
-                [sys.executable, script], cwd=self.workspace, capture_output=True,
+                [sys.executable, script], cwd=self.workspace, capture_output=True, env=env,
                 text=True, timeout=self.python_timeout, encoding="utf-8", errors="replace",
             )
         except subprocess.TimeoutExpired:

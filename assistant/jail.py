@@ -191,6 +191,7 @@ def shell_denied(command):
 
 
 GUARD_DIR = Path(__file__).resolve().parent / "jail_site"
+PYLIB = Path(__file__).resolve().parent / "pylib"   # forge_office and friends
 
 
 def sandbox_env(root, base=None):
@@ -200,5 +201,5 @@ def sandbox_env(root, base=None):
     scratch.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ if base is None else base)
     env.update(TEMP=str(scratch), TMP=str(scratch), MPLCONFIGDIR=str(scratch / "mpl"), PYTHONDONTWRITEBYTECODE="1",
-               PYTHONUTF8="1", PIP_NO_INPUT="1", PYTHONPATH=os.pathsep.join(p for p in (str(GUARD_DIR), env.get("PYTHONPATH", "")) if p))
+               PYTHONUTF8="1", PIP_NO_INPUT="1", PYTHONPATH=os.pathsep.join(p for p in (str(GUARD_DIR), str(PYLIB), env.get("PYTHONPATH", "")) if p))
     return env

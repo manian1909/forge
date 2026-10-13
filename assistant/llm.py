@@ -28,7 +28,7 @@ class LLMError(RuntimeError):
 
 class LLMClient:
     def __init__(self, base_url="http://127.0.0.1:8080/v1", model="local", temperature=0.6,
-                 max_tokens=2048, extra_body=None, api_key=None, timeout=600.0):
+                 max_tokens=3072, extra_body=None, api_key=None, timeout=600.0):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.temperature = temperature
@@ -67,7 +67,7 @@ class LLMClient:
         if tools:
             body["tools"] = tools
 
-        content, tool_calls = [], {}
+        content, tool_calls, finish = [], {}, None
         start, first_token_at, n_chunks = time.time(), None, 0
         usage = None
         with self.http.stream("POST", f"{self.base_url}/chat/completions", json=body) as resp:
@@ -88,6 +88,7 @@ class LLMClient:
                 usage = chunk.get("usage") or usage
                 if not chunk.get("choices"):
                     continue
+                finish = chunk["choices"][0].get("finish_reason") or finish
                 delta = chunk["choices"][0].get("delta", {})
                 if delta.get("content"):
                     if first_token_at is None:
@@ -120,6 +121,7 @@ class LLMClient:
         gen_time = elapsed - (first_token_at - start) if first_token_at and n_chunks > 1 else elapsed
         stats = {
             "time_to_first_token": (first_token_at or time.time()) - start,
+            "finish": finish,                      # "length" means the reply hit max_tokens and was cut off
             "prompt_tokens": (usage or {}).get("prompt_tokens", 0),   # what the whole conversation costs to send
             "tokens": gen_tokens,
             "tokens_per_sec": gen_tokens / gen_time if gen_time > 0 else 0.0,

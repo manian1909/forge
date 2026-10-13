@@ -33,6 +33,7 @@ class Skill:
     triggers: re.Pattern
     body: str
     path: Path
+    replaces: str = ""        # a more specific skill that makes this one redundant when both match
 
 
 def parse(path):
@@ -46,7 +47,8 @@ def parse(path):
         trig = re.compile(head.get("triggers") or r"(?!)", re.I)
     except re.error:
         return None
-    return Skill(head.get("name") or Path(path).stem, head.get("description", ""), trig, m.group(2).strip(), Path(path))
+    return Skill(head.get("name") or Path(path).stem, head.get("description", ""), trig, m.group(2).strip(), Path(path),
+                 head.get("replaces", ""))
 
 
 def load_skills(extra_dirs=None):
@@ -68,7 +70,9 @@ def match(text, skills, already=()):
         hits = len(s.triggers.findall(text))
         if hits:
             scored.append((hits, s.name, s))
-    return [s for _, _, s in sorted(scored, key=lambda x: (-x[0], x[1]))[:MAX_PER_TURN]]
+    picked = [s for _, _, s in sorted(scored, key=lambda x: (-x[0], x[1]))]
+    replaced = {s.replaces for s in picked if s.replaces}
+    return [s for s in picked if s.name not in replaced][:MAX_PER_TURN]
 
 
 def render(skills):
