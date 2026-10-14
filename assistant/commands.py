@@ -53,7 +53,8 @@ def normalise(text):
     t = t.replace("per cent", "percent")
     t = re.sub(r"[^\w\s]", " ", t)
     t = FILLER.sub(" ", ADDRESS.sub(" ", t))
-    t = re.sub(r"\b(vol|volum|volumne|wallum|valium|vall?um)\b", "volume", t)
+    t = re.sub(r"\b(vol|voll|vole|volum|volumne|wallum|valium|vall?um)\b", "volume", t)
+    t = re.sub(r"\bval(?= (?:\d|up|down|to |at ))", "volume", t)      # "val 60" / "val up": how recognisers hear "vol"
     if not re.match(r"(play|put on|listen)\b", t):
         t = re.sub(r"\b(sound|audio)\b", "volume", t)       # "play sound of rain" is a song, not a volume request
     t = re.sub(r"\b(sung|songs|soon|son)\b(?= *$)", "song", t) if re.search(r"\b(next|previous|skip|last)\b", t) else t

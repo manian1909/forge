@@ -32,7 +32,8 @@ def test_media_commands(text, expected):
     ("vol up", ("volume_up", 10)), ("volume down", ("volume_down", 10)), ("turn it up", ("volume_up", 10)),
     ("reduce the vol a bit", ("volume_down", 5)), ("increase the volume a lot", ("volume_up", 25)),
     ("volume up by 20", ("volume_up", 20)), ("lower the volume", ("volume_down", 10)), ("louder", ("volume_up", 10)),
-    ("turn the volume down by fifteen", ("volume_down", 15)), ("make it quieter", ("volume_down", 10)),
+    ("turn the volume down by fifteen", ("volume_down", 15)), ("Voll 60%.", ("volume_set", 60)),
+    ("Vol 60%!", ("volume_set", 60)), ("val up", ("volume_up", 10)), ("make it quieter", ("volume_down", 10)),
 ])
 def test_volume_commands(text, expected):
     cmd = parse(text)

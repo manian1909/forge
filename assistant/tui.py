@@ -905,6 +905,25 @@ def run_worker(args):
     return done
 
 
+def run_voice(args):
+    """`jarvis --voice`: always-on voice assistant. Output goes to the console, or to ~/.forge/voice.out when started at login."""
+    from . import voice
+    if not voice.claim():
+        print(f"the voice assistant is already running (pid {voice.running_pid()})")
+        return
+    console = Console(highlight=False, width=140)
+    ui = Jarvis(args, console)
+    ui.mode = "jail" if ui.jailed else ui.mode      # nobody can answer a prompt by keyboard: sandboxed tools run, others are refused
+    log = lambda m: print(f"{time.strftime('%H:%M:%S')} {m}", flush=True)
+    try:
+        v = voice.Voice(ui, mic=args.mic, whisper=args.whisper, threshold=args.wake_threshold, log=log)
+        v.run()
+    except KeyboardInterrupt:
+        log("stopped")
+    finally:
+        voice.release()
+
+
 def build_parser():
     p = argparse.ArgumentParser(prog="jarvis", description="Terminal agent for your local Forge model.")
     p.add_argument("prompt", nargs="*", help="a task to start with")
@@ -933,6 +952,12 @@ def build_parser():
     p.add_argument("--worker", action="store_true", help="run the standby worker: work through queued tasks, sharing memory with your apps")
     p.add_argument("--until-empty", action="store_true", help="with --worker: exit when the queue is empty")
     p.add_argument("--no-governor", action="store_true", help="never pause for other programs (memory sharing off)")
+    p.add_argument("--voice", action="store_true", help="listen for 'Hey Jarvis' and answer by voice (runs until stopped)")
+    p.add_argument("--voice-autostart", choices=["on", "off"], help="start the voice assistant (hidden) when you log in, or stop doing so")
+    p.add_argument("--mic", default=None, help="with --voice: part of the microphone's name (default: the Windows default mic)")
+    p.add_argument("--list-mics", action="store_true", help="show the microphones and exit")
+    p.add_argument("--wake-threshold", type=float, default=0.5, help="with --voice: wake word sensitivity 0-1 (lower = easier to trigger)")
+    p.add_argument("--whisper", default="small.en", help="with --voice: speech model: base.en (fastest), small.en (default, accurate), distil-small.en, small, medium")
     p.add_argument("--check", action="store_true", help="check the setup and exit")
     p.add_argument("--version", action="version", version=f"jarvis {VERSION}")
     return p
@@ -969,6 +994,19 @@ def main(argv=None):
         return
     if args.worker:
         run_worker(args)
+        return
+    if args.list_mics:
+        from . import voice
+        for i, name, default in voice.list_mics():
+            console.print(f"{i:3}  {name}{'  [green](default)[/green]' if default else ''}")
+        return
+    if args.voice_autostart:
+        from . import voice
+        f = voice.set_autostart(args.voice_autostart == "on", f"--mic \"{args.mic}\"" if args.mic else "")
+        console.print(f"voice assistant will start at login ({f})" if f else "voice assistant will no longer start at login")
+        return
+    if args.voice:
+        run_voice(args)
         return
 
     with console.status("[dim]checking the model server...[/dim]") if console.is_terminal else _Null() as st:
