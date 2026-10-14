@@ -1,6 +1,6 @@
 ---
 name: desktop
-description: open sites and apps, play songs, send Outlook mail
+description: open apps, folders and sites, play songs, volume, send Outlook mail
 triggers: \bvol(ume)?\b|\bmute\b|louder|quieter|\bskip\b|next song|previous song|\bpause\b|\bplay\b|\bopen\b.*(youtube|gmail|chrome|outlook|site|website|app)|\blaunch\b|\bstart\b.*\b(app|chrome|outlook|spotify)\b|\bsong\b|\bmusic\b|e-?mail|\bmail\b.*\bto\b|send.*(mail|email)
 ---
 You control the user's PC with these tools. Use them directly, do not write PowerShell for these jobs.
@@ -12,6 +12,8 @@ You control the user's PC with these tools. Use them directly, do not write Powe
   "a bit lower", value 5 for "a bit"). Never use PowerShell for volume: it has no such command.
 - "open youtube / gmail / a website": call `open_url` with the full address (https://www.youtube.com, https://mail.google.com).
 - "open outlook / excel / spotify / an app": call `open_app` with just the app name.
+- "open documents / downloads / a folder / a drive": call `open_folder` with the folder name or path. Never use Start-Process or
+  explorer.exe in the shell: they cannot start windows from the sandbox and print nothing, so they look like they worked when they did not.
 - "mail <person> about <x>": call `send_email` with to, subject and a short body. The user approves it before it is sent.
   If the user gave no address, ask for it. Never invent one.
 

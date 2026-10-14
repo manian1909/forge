@@ -41,6 +41,16 @@ def display_only_shell(command):
     return True
 
 
+LAUNCH_MSG = ("Not run: the sandboxed shell cannot open apps, folders or web pages (Windows makes File Explorer and other windows "
+              "fail to start there, and it would print nothing). Use the tools instead: open_app, open_folder, open_url, play_music.")
+_LAUNCH_STMT = re.compile(r"^\s*(&\s*)?(Start-Process|saps|start|explorer(\.exe)?|Invoke-Item|ii|cmd(\.exe)?\s+/c\s+start|Start-Job)(?![-\w])", re.I)
+
+
+def launches_window(command):
+    """True for commands that start a GUI app, folder or page (Start-Process, explorer, start, Invoke-Item)."""
+    return any(_LAUNCH_STMT.match(s) for s in re.split(r"[;\n]+", command) if s.strip())
+
+
 def file_via_shell(command):
     """True for long echo/Write-Output pipelines that write a file; write_file is the right tool for that."""
     if len(command) < 120:
@@ -167,6 +177,13 @@ TOOL_SCHEMAS = [
         "Start an installed program on the user's PC by name, e.g. Chrome, Outlook, Excel, Spotify, Notepad.",
         {"name": {"type": "string", "description": "the app's name only, no path or arguments"}},
         ["name"],
+    ),
+    _fn(
+        "open_folder",
+        "Open a folder in File Explorer for the user: Documents, Downloads, Desktop, Pictures, a drive like D:, a full path, "
+        "or just a folder name (it is searched for under the user's folders).",
+        {"path": {"type": "string", "description": "e.g. documents, downloads, D:, C:\\Users\\me\\Work, or a folder name"}},
+        ["path"],
     ),
     _fn(
         "media_control",
@@ -335,6 +352,8 @@ class Toolbox:
             from . import jail
             if jail.shell_denied(command):
                 return jail.shell_denied(command)
+            if self.harden and launches_window(command):
+                return LAUNCH_MSG
         if IS_WINDOWS:
             if self.harden:
                 command = command.replace(" && ", "; ")  # Windows PowerShell 5.1 has no &&
@@ -452,6 +471,10 @@ class Toolbox:
     def open_app(self, name):
         from . import desktop
         return desktop.open_app(name)
+
+    def open_folder(self, path):
+        from . import desktop
+        return desktop.open_folder(path)
 
     def media_control(self, action, value=None):
         from . import media

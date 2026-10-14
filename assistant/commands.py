@@ -21,7 +21,8 @@ LEVELS = {"max": 100, "maximum": 100, "full": 100, "half": 50, "min": 10, "minim
 STEP, SMALL, BIG = 10, 5, 25          # default change, "a little", "a lot"
 
 NUM = r"(\d{1,3}|[a-z]+?(?: [a-z]+?)??)"
-FILLER = re.compile(r"\b(please|jarvis|hey|ok|okay|can you|could you|would you|will you|i want you to|i want to|"
+ADDRESS = re.compile(r"^\s*(?:(?:hey|ok|okay|hi|hello)\s+)?jarvis\b|\bjarvis\s*$", re.I)   # the name, only when it addresses us
+FILLER = re.compile(r"\b(please|hey|ok|okay|can you|could you|would you|will you|i want you to|i want to|"
                     r"i would like to|just|now|for me|kindly|hello)\b")
 SERVICES = {"youtube music": "youtube_music", "utube music": "youtube_music", "u tube music": "youtube_music", "yt music": "youtube_music", "you tube music": "youtube_music",
             "youtube": "youtube", "you tube": "youtube", "utube": "youtube", "u tube": "youtube"}
@@ -51,7 +52,7 @@ def normalise(text):
     t = re.sub(r"(\d)\s*%", r"\1 percent", t)
     t = t.replace("per cent", "percent")
     t = re.sub(r"[^\w\s]", " ", t)
-    t = FILLER.sub(" ", t)
+    t = FILLER.sub(" ", ADDRESS.sub(" ", t))
     t = re.sub(r"\b(vol|volum|volumne|wallum|valium|vall?um)\b", "volume", t)
     if not re.match(r"(play|put on|listen)\b", t):
         t = re.sub(r"\b(sound|audio)\b", "volume", t)       # "play sound of rain" is a song, not a volume request
@@ -127,10 +128,35 @@ def parse(text):
         if query:
             return {"action": "play", "query": query, "service": service}
 
-    m = re.match(r"^(?:open|launch|start|run)\s+(?:the\s+)?([a-z0-9 ]{2,30})$", t)
-    if m and not re.search(r"\b(file|folder|script|program|code|website|site|page|link)\b", m.group(1)):
-        return {"action": "open_app", "name": m.group(1).strip()}
+    m = re.match(r"^(?:open|launch|start|show|go to|browse|take me to)\s+(.+)$", t)
+    if m:
+        rest = m.group(1)
+        spec = _folder_spec(rest)
+        if spec:
+            return {"action": "open_folder", "path": spec}
+        if re.fullmatch(r"(?:the )?(?:files? |windows )?explorer|this pc|my computer", rest):
+            return {"action": "open_app", "name": "file explorer"}
+        m = re.match(r"^(?:open|launch|start|run)\s+(?:the\s+)?([a-z0-9 ]{2,30})$", t)
+        if m and not re.search(r"\b(file|folder|script|program|code|website|site|page|link|document)\b", m.group(1)):
+            return {"action": "open_app", "name": m.group(1).strip()}
     return None
+
+
+FOLDER_NAMES = r"documents?|docs|downloads?|desktop|pictures?|photos|images|music|songs|videos?|movies|recycle bin|home|jarvis"
+DRIVE = r"(?:[a-z] drive|drive [a-z]|[a-z]:)"
+
+
+def _folder_spec(rest):
+    """The folder named in 'open ...' (documents, d drive, 'reports folder', 'explorer ... then the downloads folder')."""
+    last = re.split(r"\b(?:in that|in it|and then|and|then)\s+(?:open|show|go to)\s+|\bin\s+(?=(?:the |my )?(?:" + FOLDER_NAMES + r"))", rest)[-1]
+    last = re.sub(r"^(?:the |my |a )+", "", last.strip())
+    if re.fullmatch(rf"(?:{FOLDER_NAMES}|{DRIVE})(?: folder| directory)?", last):
+        return re.sub(r" (?:folder|directory)$", "", last)
+    m = re.fullmatch(r"([a-z0-9 _.-]{2,40}) (?:folder|directory)", last)        # "project reports folder"
+    if m and not re.search(r"\b(file|explorer)\b", m.group(1)):
+        return m.group(1).strip()
+    m = re.fullmatch(r"(?:folder|directory) (?:called |named )?([a-z0-9 _.-]{2,40})", last)
+    return m.group(1).strip() if m else None
 
 
 def run(cmd, toolbox=None):
@@ -142,4 +168,7 @@ def run(cmd, toolbox=None):
     if action == "open_app":
         from . import desktop
         return desktop.open_app(cmd["name"])
+    if action == "open_folder":
+        from . import desktop
+        return desktop.open_folder(cmd["path"])
     return media.do(action, cmd.get("value"))
