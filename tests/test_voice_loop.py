@@ -1,4 +1,4 @@
-"""The whole listening loop with the real wake-word and speech models, fed Windows' own synthetic speech in real time.
+"""The whole listening loop with the real speech models, fed Windows' own synthetic speech in real time.
 
 It stands in for a microphone (a synthetic voice is not a person, so accents and room noise are not covered), and it
 skips itself when the models or the Windows speech engine are not there."""
@@ -23,13 +23,15 @@ pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="uses the Window
 
 def models_present():
     try:
-        import openwakeword
         from faster_whisper.utils import download_model
-        res = Path(openwakeword.__file__).parent / "resources" / "models"
-        download_model("small.en", local_files_only=True)
-        return any(res.glob("hey_jarvis*.onnx"))
+        for name in ("small.en", "base.en"):
+            download_model(name, local_files_only=True)
+        return True
     except Exception:  # noqa: BLE001
         return False
+
+
+needs_models = pytest.mark.skipif(not models_present(), reason="speech models not downloaded")
 
 
 def synth(text, path):
@@ -49,6 +51,9 @@ class FakeMic:
 
     def start(self):
         threading.Thread(target=self._feed, daemon=True).start()
+
+    def stop(self):
+        pass
 
     def _feed(self):
         rng, pos = np.random.default_rng(0), 0
@@ -94,40 +99,53 @@ class FakeUI:
         self.speaker = FakeSpeaker()
 
 
-def hear(tmp_path, monkeypatch, gain, spoken="play next song", gap=0.5, noise_s=6):
+def hear(tmp_path, monkeypatch, parts, gain=1.0, tail=7):
+    """parts: ("say", text) or ("pause", seconds). Returns the commands that were run."""
     rng = np.random.default_rng(1)
     noise = lambda s: (rng.standard_normal(int(s * 16000)) * 8).astype(np.int16)
-    wake, cmd = synth("Hey Jarvis", tmp_path / "w.wav"), synth(spoken, tmp_path / "c.wav")
-    stream = np.concatenate([noise(1.5), (wake * gain).astype(np.int16), noise(gap), (cmd * gain).astype(np.int16), noise(noise_s)])
+    pieces = [noise(1.5)]
+    for i, (kind, value) in enumerate(parts):
+        pieces.append((synth(value, tmp_path / f"p{i}.wav") * gain).astype(np.int16) if kind == "say" else noise(value))
+    pieces.append(noise(tail))
+    stream = np.concatenate(pieces)
     ran = []
-    monkeypatch.setattr(commands, "run", lambda c, toolbox=None: (ran.append(c), "ok")[1])
+    monkeypatch.setattr(commands, "run", lambda c, toolbox=None: (ran.append(c["action"]), "ok")[1])
     ui = FakeUI()
     v = voice.Voice(ui, beeps=False, log=lambda m: None, source=FakeMic(stream))
     v.duck.down = v.duck.up = lambda: None
     t = threading.Thread(target=v.run, daemon=True)
     t.start()
-    t.join(len(stream) / 16000 + 6)
+    t.join(len(stream) / 16000 + 10)
     v.stop.set()
     return ran, ui.speaker.said
 
 
-@pytest.mark.skipif(not models_present(), reason="wake-word / speech models not downloaded")
+@needs_models
 @pytest.mark.parametrize("gain", [1.0, 0.03])        # a normal microphone, and one about 30 times quieter
-def test_hey_jarvis_then_a_command_runs_it(tmp_path, monkeypatch, gain):
-    ran, said = hear(tmp_path, monkeypatch, gain)
-    assert ran == [{"action": "next"}] and said == ["ok"]
+def test_jarvis_and_the_command_in_one_breath(tmp_path, monkeypatch, gain):
+    ran, said = hear(tmp_path, monkeypatch, [("say", "Jarvis play next song")], gain=gain)
+    assert ran == ["next"] and said == []             # a chime, not a spoken reply, so nothing blocks the next command
 
 
-@pytest.mark.skipif(not models_present(), reason="wake-word / speech models not downloaded")
-def test_speech_without_the_wake_word_does_nothing(tmp_path, monkeypatch):
-    rng = np.random.default_rng(1)
-    stream = np.concatenate([(rng.standard_normal(24000) * 8).astype(np.int16), synth("play next song", tmp_path / "c.wav"),
-                             (rng.standard_normal(16000 * 4) * 8).astype(np.int16)])
-    ran = []
-    monkeypatch.setattr(commands, "run", lambda c, toolbox=None: ran.append(c))
-    v = voice.Voice(FakeUI(), beeps=False, log=lambda m: None, source=FakeMic(stream))
-    t = threading.Thread(target=v.run, daemon=True)
-    t.start()
-    t.join(len(stream) / 16000 + 2)
-    v.stop.set()
+@needs_models
+def test_just_jarvis_then_the_command_after_the_beep(tmp_path, monkeypatch):
+    ran, _ = hear(tmp_path, monkeypatch, [("say", "Jarvis"), ("pause", 1.2), ("say", "pause the music")])
+    assert ran == ["pause"]
+
+
+@needs_models
+def test_a_second_command_right_after_the_first_needs_no_jarvis(tmp_path, monkeypatch):
+    ran, _ = hear(tmp_path, monkeypatch, [("say", "Jarvis volume up"), ("pause", 1.0), ("say", "previous song")])
+    assert ran == ["volume_up", "prev"]
+
+
+@needs_models
+def test_talking_without_jarvis_does_nothing(tmp_path, monkeypatch):
+    ran, _ = hear(tmp_path, monkeypatch, [("say", "play next song"), ("pause", 1.5), ("say", "what is the weather like in London today")])
     assert ran == []
+
+
+@needs_models
+def test_the_follow_up_window_closes(tmp_path, monkeypatch):
+    ran, _ = hear(tmp_path, monkeypatch, [("say", "Jarvis next song"), ("pause", 11.0), ("say", "volume down")], tail=4)
+    assert ran == ["next"]

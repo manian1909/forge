@@ -215,6 +215,7 @@ class Speaker:
         self._jobs = queue.Queue()        # sentences waiting to be synthesised
         self._ready = queue.Queue(maxsize=2)   # synthesised, waiting to be played
         self._epoch = 0
+        self._pending = 0                 # sentences said or still to be said (queued, being made, or playing)
         self._lock = threading.Lock()
         self._threads = []
         self.configure(engine, voice, rate)
@@ -258,10 +259,12 @@ class Speaker:
         while True:
             epoch, text = self._jobs.get()
             if epoch != self._epoch or self.engine is None:
+                self._done(epoch)
                 continue
             try:
                 item = self.engine.synth(text)
             except Exception:  # noqa: BLE001 - offline, service hiccup: skip this sentence
+                self._done(epoch)
                 continue
             self._ready.put((epoch, item))
 
@@ -269,13 +272,20 @@ class Speaker:
         while True:
             epoch, item = self._ready.get()
             if epoch != self._epoch or self.engine is None:
+                self._done(epoch)
                 continue
             try:
                 if hasattr(self.engine, "player"):
                     self.engine.player.stop_flag.clear()
                 self.engine.play(item)
             except Exception:  # noqa: BLE001
-                continue
+                pass
+            self._done(epoch)
+
+    def _done(self, epoch):
+        with self._lock:
+            if epoch == self._epoch and self._pending > 0:
+                self._pending -= 1
 
     def say(self, markdown_text):
         """Queue a reply to be spoken; returns immediately."""
@@ -287,6 +297,7 @@ class Speaker:
         self._start_threads()
         with self._lock:
             epoch = self._epoch
+            self._pending += len(sentences)
         for s in sentences:
             self._jobs.put((epoch, s))
 
@@ -294,6 +305,7 @@ class Speaker:
         """Silence now and drop everything queued."""
         with self._lock:
             self._epoch += 1
+            self._pending = 0
         for q in (self._jobs, self._ready):
             try:
                 while True:
@@ -304,4 +316,5 @@ class Speaker:
             self.engine.stop()
 
     def busy(self):
-        return not (self._jobs.empty() and self._ready.empty())
+        """True while anything is queued, being prepared or still playing (so a microphone can wait until it is quiet)."""
+        return self._pending > 0 or not (self._jobs.empty() and self._ready.empty())

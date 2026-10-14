@@ -10,7 +10,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from assistant import voice  # noqa: E402
-from assistant.voice import CHUNK, Endpointer, judge, yes_no  # noqa: E402
+from assistant.voice import CHUNK, Detector, Endpointer, is_wake, judge, strip_wake, yes_no  # noqa: E402
 
 
 def seg(text, lp=-0.2, nsp=0.01, cr=1.2):
@@ -118,3 +118,59 @@ def test_only_one_voice_assistant_at_a_time(monkeypatch, tmp_path):
     voice.lock_path().write_text("4")                        # another live process: pid 4 is the Windows System process
     monkeypatch.setattr(voice.tasks, "pid_alive", lambda pid: True)
     assert voice.claim() is False
+
+
+@pytest.mark.parametrize("text,woke,rest", [
+    ("Jarvis, play next song.", True, "play next song."), ("Jarvis play next song", True, "play next song"),
+    ("Hey Jarvis volume up", True, "volume up"), ("jarvis", True, ""), ("Jarvis.", True, ""),
+    ("Jervis, open the documents folder", True, "open the documents folder"), ("Jarvice pause", True, "pause"),
+    ("OK Jarvis what time is it", True, "what time is it"), ("Jar vis next song", True, "next song"),
+    ("play next song", False, "play next song"), ("my friend Travis is here", False, "my friend Travis is here"),
+    ("the service is down", False, "the service is down"), ("", False, ""),
+])
+def test_wake_word_in_a_transcript(text, woke, rest):
+    assert is_wake(text) is woke
+    assert strip_wake(text) == rest
+
+
+def detect(det, parts, floor=20.0):
+    events = []
+    for c in parts:
+        ev = det.feed(c, floor)
+        if ev:
+            events.append(ev)
+    return events
+
+
+def test_detector_finds_an_utterance_and_its_end():
+    det = Detector()
+    events = detect(det, chunks(10, 10) + chunks(2000, 12) + chunks(10, 20))
+    assert events[0] == "started" and events[-1] == "ended" and det.long_enough()
+    assert len(det.audio()) > 12 * CHUNK                     # the sound before the onset is kept too, so the first word is whole
+
+
+def test_detector_is_sensitive_to_a_quiet_voice():
+    det = Detector()
+    events = detect(det, chunks(10, 10) + chunks(160, 12) + chunks(10, 20), floor=10.0)     # a voice only 16x the noise
+    assert "started" in events and events[-1] == "ended"
+
+
+def test_detector_ignores_a_click():
+    det = Detector()
+    events = detect(det, chunks(10, 10) + chunks(5000, 1) + chunks(10, 30))
+    assert "started" not in events
+
+
+def test_detector_asks_for_the_name_check_after_the_first_moments():
+    det = Detector()
+    events = detect(det, chunks(2000, 40))
+    assert "early" in events and events.index("early") > events.index("started")
+
+
+def test_detector_skips_the_rest_of_something_that_is_not_for_us():
+    det = Detector()
+    detect(det, chunks(2000, 22))
+    det.skip()
+    assert detect(det, chunks(2000, 30)) == []                 # still talking: nothing new starts
+    detect(det, chunks(10, 20))
+    assert "started" in detect(det, chunks(2000, 6))           # after it went quiet, listening again

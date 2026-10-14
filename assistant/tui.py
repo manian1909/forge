@@ -11,6 +11,7 @@ searching are automatic. /auto switches to fully autonomous.
 """
 
 import argparse
+from contextlib import ExitStack
 import json
 import os
 import re
@@ -154,6 +155,7 @@ class Jarvis:
         self.learn = cfg.get("learn", True)   # remember tasks that worked and recall them (/learn off stops it)
         self.remembered = False
         self.last_turn = None
+        self.task_running = False       # a model task is in progress (voice "stop" interrupts it)
         self.speaker = Speaker(cfg.get("voice_engine", "edge"), cfg.get("voice", ""), cfg.get("voice_rate", "+0%"))
         self.speaker.enabled = bool(getattr(args, "speak", False) or cfg.get("speak"))
 
@@ -451,6 +453,7 @@ class Jarvis:
         self.speaker.stop()
         self._streamed = False
         self.busy(True, "thinking")
+        self.task_running = True
         try:
             answer, stats = self.agent.run(text, on_token=self.on_token, on_tool=self.on_tool, on_result=self.on_result,
                                            on_verify=self.on_verify, on_retry=self.on_retry, hints=hints)
@@ -458,6 +461,7 @@ class Jarvis:
             self.end_text()
             self.busy(False)
             del self.agent.messages[mark:]  # drop the half-finished turn so the next request is well-formed
+            self.task_running = False
             self.speaker.stop()
             self.console.print("\n[yellow]stopped.[/yellow]")
             return None
@@ -465,8 +469,10 @@ class Jarvis:
             self.end_text()
             self.busy(False)
             del self.agent.messages[mark:]
+            self.task_running = False
             self.console.print(f"\n[red]error:[/red] {e}")
             return None
+        self.task_running = False
         self.end_text()
         self.busy(False)
         for s in stats:
@@ -827,27 +833,67 @@ class Jarvis:
         c.print("[dim]  /voice <number> picks one and plays a sample. /voice engine edge|windows, /voice rate faster|slower[/dim]")
 
     # ------------------------------------------------------------------ the loop
-    def repl(self, first_prompt="", session=None):
+    def say_aloud(self, text):
+        """Speak this even when spoken replies are switched off (a spoken confirmation of something you said)."""
+        was, self.speaker.enabled = self.speaker.enabled, True
+        try:
+            self.speaker.say(text)
+        finally:
+            self.speaker.enabled = was
+
+    def repl(self, first_prompt="", session=None, bridge=None):
+        from prompt_toolkit.patch_stdout import patch_stdout
+        from .voice import WAKE_PROMPT
         if session is None:
             session = self.make_session()
+        if bridge is not None:
+            bridge.session = session
         pending = first_prompt
-        while True:
-            try:
-                line = pending or session.prompt()
-            except KeyboardInterrupt:
-                self.console.print("[dim](Ctrl+C stops a running task. Use /exit or Ctrl+D to quit.)[/dim]")
-                continue
-            except EOFError:
-                break
-            pending = ""
-            line = line.strip()
-            if not line:
-                continue
-            if line.startswith("/"):
-                if not self.command(line):
-                    break
-                continue
-            self.run_task(line)
+        guard = ExitStack()
+        try:
+            guard.enter_context(patch_stdout(raw=True))    # voice messages can print while the input line is waiting
+        except Exception:  # noqa: BLE001 - an odd terminal (no Windows console): messages may overwrite the input line
+            pass
+        with guard:
+            while True:
+                item = bridge.take() if bridge else None    # something you said, waiting for its turn
+                if item is None:
+                    try:
+                        line = pending or session.prompt()
+                    except KeyboardInterrupt:
+                        self.console.print("[dim](Ctrl+C stops a running task. Use /exit or Ctrl+D to quit.)[/dim]")
+                        continue
+                    except EOFError:
+                        break
+                    pending = ""
+                    if line == WAKE_PROMPT:
+                        continue                      # the voice thread woke the input line; the next pass takes its message
+                    line = line.strip()
+                    if not line:
+                        continue
+                    item = ("keys", line, "")
+                kind, line, say = item
+                if kind == "cmd":                     # a mode phrase: the same as typing the slash command
+                    self.console.print(f"[magenta]voice[/magenta] {line}")
+                    keep = self.command(line)
+                    if say and keep:
+                        self.say_aloud(say)
+                    if not keep:
+                        break
+                elif kind == "task":                  # a request you spoke: answer it, and read the answer aloud
+                    self.console.print(f"[magenta]you (voice)[/magenta] {line}")
+                    was, self.speaker.enabled = self.speaker.enabled, True
+                    try:
+                        self.run_task(line)
+                    finally:
+                        self.speaker.enabled = was
+                    if bridge:
+                        bridge.after_task()
+                elif line.startswith("/"):
+                    if not self.command(line):
+                        break
+                else:
+                    self.run_task(line)
         self.speaker.stop()
         self.console.print("[dim]bye.[/dim]")
 
@@ -915,8 +961,9 @@ def run_voice(args):
     ui = Jarvis(args, console)
     ui.mode = "jail" if ui.jailed else ui.mode      # nobody can answer a prompt by keyboard: sandboxed tools run, others are refused
     log = lambda m: print(f"{time.strftime('%H:%M:%S')} {m}", flush=True)
+    voice.lower_priority()
     try:
-        v = voice.Voice(ui, mic=args.mic, whisper=args.whisper, threshold=args.wake_threshold, log=log)
+        v = voice.Voice(ui, mic=args.mic, whisper=args.whisper, log=log)
         v.run()
     except KeyboardInterrupt:
         log("stopped")
@@ -952,12 +999,12 @@ def build_parser():
     p.add_argument("--worker", action="store_true", help="run the standby worker: work through queued tasks, sharing memory with your apps")
     p.add_argument("--until-empty", action="store_true", help="with --worker: exit when the queue is empty")
     p.add_argument("--no-governor", action="store_true", help="never pause for other programs (memory sharing off)")
-    p.add_argument("--voice", action="store_true", help="listen for 'Hey Jarvis' and answer by voice (runs until stopped)")
+    p.add_argument("--voice", action="store_true", help="run only the voice assistant (hidden service mode; listens for 'Jarvis' until stopped)")
     p.add_argument("--voice-autostart", choices=["on", "off"], help="start the voice assistant (hidden) when you log in, or stop doing so")
     p.add_argument("--mic", default=None, help="with --voice: part of the microphone's name (default: the Windows default mic)")
+    p.add_argument("--no-listen", action="store_true", help="do not listen for 'Jarvis' in the terminal chat (it does by default)")
     p.add_argument("--mic-test", action="store_true", help="check the microphone: is it muted, can jarvis hear you (live level)")
     p.add_argument("--list-mics", action="store_true", help="show the microphones and exit")
-    p.add_argument("--wake-threshold", type=float, default=0.5, help="with --voice: wake word sensitivity 0-1 (lower = easier to trigger)")
     p.add_argument("--whisper", default="small.en", help="with --voice: speech model: base.en (fastest), small.en (default, accurate), distil-small.en, small, medium")
     p.add_argument("--check", action="store_true", help="check the setup and exit")
     p.add_argument("--version", action="version", version=f"jarvis {VERSION}")
@@ -1042,7 +1089,20 @@ def main(argv=None):
         ui.run_task(task)
         return
     ui.banner(server_note="ready" if ok else "")
-    ui.repl(first_prompt=task)
+    bridge = None
+    if not args.no_listen and load_config().get("listen", True):
+        from . import voice
+        bridge = voice.start_in_terminal(ui, args)
+        if bridge is not None:
+            console.print("[dim]listening: say [bold]Jarvis[/bold] then what you want (music, volume, open things, or any request; "
+                          "'auto mode', 'reset', 'speak on' and the other / commands work by voice too). "
+                          "--no-listen turns this off.[/dim]")
+    try:
+        ui.repl(first_prompt=task, bridge=bridge)
+    finally:
+        if bridge is not None:
+            from . import voice
+            voice.stop_in_terminal(bridge)
 
 
 class _Null:
