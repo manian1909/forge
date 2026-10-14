@@ -89,8 +89,10 @@ def yes_no(text):
 class Endpointer:
     """Finds the end of a spoken command: it has started once loud enough, over once quiet for ``silence_s``."""
 
-    def __init__(self, floor, silence_s=0.9, start_timeout_s=5.0, max_s=12.0, min_speech_s=0.25):
-        self.threshold = max(450.0, floor * 3.0)
+    def __init__(self, floor, silence_s=0.9, start_timeout_s=5.0, max_s=12.0, min_speech_s=0.25, level=None):
+        """``floor`` is the background loudness; ``level`` how loud you just said "Hey Jarvis" through this microphone,
+        so a quiet microphone is not held to the standard of a loud one."""
+        self.threshold = max(60.0, floor * 3.0, min(450.0, 0.3 * level) if level else 450.0)
         self.silence_chunks = int(silence_s * RATE / CHUNK)
         self.start_chunks = int(start_timeout_s * RATE / CHUNK)
         self.max_chunks = int(max_s * RATE / CHUNK)
@@ -189,6 +191,9 @@ class Transcriber:
         pcm = audio.astype(np.float32) / 32768.0 if audio.dtype == np.int16 else audio.astype(np.float32)
         if len(pcm) < RATE * 0.3:
             return Heard("", False, "too short")
+        peak = float(np.abs(pcm).max())
+        if 0 < peak < 0.5:
+            pcm = pcm * min(0.8 / peak, 20.0)           # a quiet microphone: bring the voice up to a normal level first
         segs, _ = self.load().transcribe(
             pcm, language=language, beam_size=1, temperature=0.0, vad_filter=True,
             vad_parameters={"min_silence_duration_ms": 400, "speech_pad_ms": 200}, condition_on_previous_text=False,
@@ -216,6 +221,35 @@ class WakeWord:
 
     def reset(self):
         self.model.reset()
+
+
+def mic_test(device=None, seconds=5, out=print):
+    """Show which microphone is used, whether Windows has it muted, and a live level while you speak. Returns True if it hears you."""
+    import sounddevice as sd
+    info = sd.query_devices(device if device is not None else sd.default.device[0])
+    out(f"microphone: {info['name']}")
+    muted = media.mic_muted()
+    if muted:
+        out("  Windows has this microphone MUTED. Unmute it in Settings > System > Sound > Input (or press your mic-mute key).")
+    mic = Mic(device)
+    mic.start()
+    out(f"  say something for {seconds} seconds (try: 'Hey Jarvis, play next song')...")
+    peak, end = 0.0, time.time() + seconds
+    while time.time() < end:
+        c = mic.read(1.0)
+        if c is None:
+            continue
+        rms = float(np.sqrt(np.mean(c.astype(np.float32) ** 2)))
+        peak = max(peak, rms)
+        out("  " + "#" * min(60, int(rms / 60)) + f" {rms:.0f}")
+    mic.stream.stop()
+    if peak < 5:
+        out("  RESULT: pure silence. " + ("It is muted." if muted else "Check the mute switch, the input volume, and that Windows allows desktop apps to use the microphone."))
+    elif peak < 150:
+        out("  RESULT: very quiet. It will work (jarvis levels it up) but raise the input volume in Sound settings if it misses words.")
+    else:
+        out("  RESULT: I can hear you.")
+    return peak >= 5
 
 
 # ------------------------------------------------------------------------------------------ service
@@ -264,13 +298,17 @@ def set_autostart(on, extra_args=""):
 class Voice:
     """The listening loop. ``ui`` is a Jarvis (assistant/tui.py) used for the model, the voice and the sandbox."""
 
-    def __init__(self, ui, mic=None, whisper="small.en", threshold=0.5, beeps=True, log=print):
+    def __init__(self, ui, mic=None, whisper="small.en", threshold=0.5, beeps=True, log=print, source=None):
+        """``source`` replaces the microphone (anything with start/read/flush), which is how the loop is tested."""
         self.ui, self.log, self.beeps = ui, log, beeps
-        self.mic = Mic(find_mic(mic))
+        self.mic = source or Mic(find_mic(mic))
+        self.stop = threading.Event()
         self.wake = WakeWord(threshold)
         self.stt = Transcriber(whisper)
         self.duck = media.Duck(15)
         self.floor = 150.0                      # background loudness, learned while idle
+        self.speech_level = None                # how loud "Hey Jarvis" was, set at each wake-up
+        self.missed = 0                         # wake-ups in a row where no command followed
         self.model_ready = False
         ui.speaker.enabled = True
 
@@ -297,7 +335,7 @@ class Voice:
 
     def record(self, start_timeout=5.0, preroll=None):
         """Record one spoken command (stops when you stop talking). Returns int16 audio or None."""
-        ep = Endpointer(self.floor, start_timeout_s=start_timeout)
+        ep = Endpointer(self.floor, start_timeout_s=start_timeout, level=self.speech_level)
         chunks = list(preroll or [])
         while True:
             c = self.mic.read(2.0)
@@ -367,9 +405,8 @@ class Voice:
         self.log("listening for 'Hey Jarvis'. Ctrl+C stops.")
         if media.mic_muted():
             self.log("WARNING: your microphone is muted in Windows (Settings > System > Sound > Input), so I cannot hear you.")
-        loud = []
-        idle_since = time.time()
-        while True:
+        loud, recent = [], []
+        while not self.stop.is_set():
             chunk = self.mic.read(1.0)
             if chunk is None:
                 self.stt.maybe_unload()
@@ -377,9 +414,11 @@ class Voice:
             rms = float(np.sqrt(np.mean(chunk.astype(np.float32) ** 2)))
             loud = (loud + [rms])[-40:]
             self.floor = float(np.percentile(loud, 30))
+            recent = (recent + [rms])[-15:]
             if not self.wake.heard(chunk):
                 continue
             self.log("wake word")
+            self.speech_level = max(recent) if recent else None
             threading.Thread(target=self.stt.load, daemon=True).start()      # loads while you speak (first time only)
             self.duck.down()
             self.beep(1100, 60)
@@ -389,9 +428,16 @@ class Voice:
                 if not heard.ok:
                     self.log(f"  did not catch it ({heard.reason}): {heard.text!r}")
                     self.beep(500, 120)
-                    if heard.reason not in ("no speech", "too short"):
+                    if heard.reason in ("no speech", "too short"):
+                        self.missed += 1
+                        if self.missed >= 2:
+                            self.missed = 0
+                            self.speak("I heard my name but not what came after it. Say the command right after Jarvis, "
+                                       "or turn your microphone up.")
+                    else:
                         self.speak("Sorry, I didn't catch that.")
                     continue
+                self.missed = 0
                 self.log(f"  heard: {heard.text!r} ({heard.confidence:.0%})")
                 reply, quiet = self.handle(heard)
                 self.log(f"  reply: {reply}")

@@ -90,6 +90,14 @@ def test_long_monologue_is_cut_off():
     assert run_endpointer(ep, chunks(3000, 100))[0] == "long"
 
 
+def test_quiet_microphone_is_not_held_to_a_loud_standard():
+    quiet = Endpointer(floor=8, level=90)           # you said "Hey Jarvis" at ~90 through this mic
+    assert quiet.threshold < 100
+    verdict, _ = run_endpointer(quiet, chunks(85, 12) + chunks(8, 40))
+    assert verdict == "done"
+    assert Endpointer(floor=8, level=3000).threshold == 450      # a loud mic keeps the usual ceiling
+
+
 def test_loud_room_raises_the_bar():
     assert Endpointer(floor=1000).threshold >= 3000 and Endpointer(floor=10).threshold == 450
 

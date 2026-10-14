@@ -955,6 +955,7 @@ def build_parser():
     p.add_argument("--voice", action="store_true", help="listen for 'Hey Jarvis' and answer by voice (runs until stopped)")
     p.add_argument("--voice-autostart", choices=["on", "off"], help="start the voice assistant (hidden) when you log in, or stop doing so")
     p.add_argument("--mic", default=None, help="with --voice: part of the microphone's name (default: the Windows default mic)")
+    p.add_argument("--mic-test", action="store_true", help="check the microphone: is it muted, can jarvis hear you (live level)")
     p.add_argument("--list-mics", action="store_true", help="show the microphones and exit")
     p.add_argument("--wake-threshold", type=float, default=0.5, help="with --voice: wake word sensitivity 0-1 (lower = easier to trigger)")
     p.add_argument("--whisper", default="small.en", help="with --voice: speech model: base.en (fastest), small.en (default, accurate), distil-small.en, small, medium")
@@ -995,6 +996,10 @@ def main(argv=None):
     if args.worker:
         run_worker(args)
         return
+    if args.mic_test:
+        from . import voice
+        ok = voice.mic_test(voice.find_mic(args.mic), out=console.print)
+        sys.exit(0 if ok else 1)
     if args.list_mics:
         from . import voice
         for i, name, default in voice.list_mics():

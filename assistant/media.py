@@ -4,8 +4,13 @@ Media keys go to whatever player owns the Windows media session (YouTube Music i
 keys on a keyboard. Volume uses the Windows master volume (pycaw) and falls back to the volume keys. No admin rights.
 """
 
+import atexit
 import ctypes
+import functools
+import gc
+import queue
 import sys
+import threading
 import time
 
 VK = {"next": 0xB0, "prev": 0xB1, "stop": 0xB2, "play_pause": 0xB3, "mute": 0xAD, "vol_down": 0xAE, "vol_up": 0xAF}
@@ -21,6 +26,61 @@ def press(key):
     ctypes.windll.user32.keybd_event(code, 0, KEYEVENTF_KEYUP, 0)
 
 
+_jobs = None
+
+
+def _com_thread():
+    """All Windows audio (COM) calls run on this one thread, which initialises COM once and frees every object it makes.
+    COM objects released later on some other thread (by the garbage collector) crash the whole process."""
+    import comtypes
+    comtypes.CoInitialize()
+    while True:
+        job = _jobs.get()
+        if job is None:                           # shutting down: release everything while COM is still alive
+            gc.collect()
+            comtypes.CoUninitialize()
+            return
+        fn, args, kwargs, box, done = job
+        try:
+            box.append((True, fn(*args, **kwargs)))
+        except BaseException as e:  # noqa: BLE001 - handed back to the caller
+            box.append((False, e))
+        gc.collect()                  # break reference cycles here, on the thread that made the objects
+        done.set()
+
+
+_worker = None
+
+
+def _stop_com_thread():
+    if _jobs is not None and _worker is not None and _worker.is_alive():
+        _jobs.put(None)
+        _worker.join(3)
+
+
+def _com(fn):
+    """Run a Windows audio call on the COM thread and return its result."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        global _jobs, _worker
+        if threading.current_thread().name == "jarvis-com":
+            return fn(*args, **kwargs)                   # already there (one audio function calling another)
+        if _jobs is None:
+            _jobs = queue.Queue()
+            _worker = threading.Thread(target=_com_thread, name="jarvis-com", daemon=True)
+            _worker.start()
+            atexit.register(_stop_com_thread)
+        box, done = [], threading.Event()
+        _jobs.put((fn, args, kwargs, box, done))
+        if not done.wait(15):
+            raise TimeoutError("the Windows audio service did not answer")
+        ok, value = box[0]
+        if not ok:
+            raise value
+        return value
+    return wrapper
+
+
 def _endpoint():
     from ctypes import POINTER, cast
     from comtypes import CLSCTX_ALL
@@ -32,6 +92,7 @@ def _endpoint():
     return cast(iface(IAudioEndpointVolume._iid_, CLSCTX_ALL, None), POINTER(IAudioEndpointVolume))
 
 
+@_com
 def audio_active(seconds=0.6):
     """True if something is making sound right now (master output meter), so pause/resume can avoid a wrong toggle."""
     try:
@@ -50,6 +111,7 @@ def audio_active(seconds=0.6):
         return None
 
 
+@_com
 def mic_muted():
     """True/False for the default microphone's Windows mute switch, None if it cannot be read."""
     try:
@@ -63,6 +125,7 @@ def mic_muted():
         return None
 
 
+@_com
 def get_volume():
     """Master volume 0-100, or None if it cannot be read."""
     try:
@@ -71,6 +134,7 @@ def get_volume():
         return None
 
 
+@_com
 def set_volume(percent):
     """Set the master volume to an exact percentage (0-100). Returns the level now set."""
     percent = max(0, min(100, int(round(percent))))
@@ -97,6 +161,7 @@ def change_volume(delta):
     return set_volume(now + delta)
 
 
+@_com
 def set_mute(on):
     try:
         _endpoint().SetMute(1 if on else 0, None)
