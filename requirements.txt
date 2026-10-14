@@ -19,3 +19,10 @@ transformers>=4.51
 peft>=0.14
 bitsandbytes>=0.45
 edge-tts>=6.1        # optional: natural voices for /speak (the built-in Windows voice works without it)
+
+# voice assistant (jarvis --voice): wake word, speech to text, microphone, Windows volume
+faster-whisper>=1.0
+openwakeword>=0.6
+sounddevice>=0.4
+pycaw>=20240210
+pywin32>=306  # Outlook mail (send_email)
