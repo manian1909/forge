@@ -163,3 +163,30 @@ markdown symbols are dropped, and speech starts after the first sentence is read
   - **edge**: natural neural voices (US, UK, India, Australia; any name from `edge-tts --list-voices` works, e.g. `/voice en-IN-NeerjaNeural`).
     Needs the `edge-tts` package (`/speak` installs it for you the first time) and internet, and the text of each answer is sent to Microsoft's service to make the audio.
   - **windows**: the voices built into Windows. Fully offline, more robotic.
+
+
+## Voice: say "Jarvis"
+
+Running `jarvis` in the terminal starts listening at once (`--no-listen` turns it off). Say **Jarvis** and then what you want,
+in one breath ("Jarvis, play next song") or after the beep ("Jarvis." ... "volume 60 percent").
+
+- **Quick commands** run immediately and answer with a chime, with no model involved: next/previous song, pause, resume,
+  volume up/down/"a bit"/exact ("vol 40%"), mute, "play <song>", "open <app or folder>".
+- **Follow-ups:** for 8 seconds after a command you can keep talking without saying Jarvis ("volume down", "previous song").
+  After a model answer, free-text follow-ups work in the same window.
+- **Modes by voice:** everything you can do with a `/` command: "auto mode", "ask mode", "sandbox mode", "reset", "compact",
+  "undo", "speak on", "stop speaking", "list jobs", "standby on", "use the uncensored model", "learning off",
+  "run this in the background ...", "exit". "Stop" or "never mind" interrupts a running task (Ctrl+C) or, with none
+  running, pauses the music. Quick commands work even while the model is busy.
+- **Anything else** becomes your next message in the chat, and the answer is read aloud.
+- **Sending mail** is asked back out loud ("send an email to ... saying ... yes or no?").
+
+Starts at login: `jarvis --voice-autostart on` (a hidden script in your Startup folder, no admin; `off` removes it).
+When you open the terminal chat it takes the microphone over from that background service and gives it back when you quit.
+
+Wrong words are filtered in layers: a speech-detector that follows your room's noise level, a fast Whisper model that checks the
+sentence starts with "Jarvis", a confidence check on the command (a doubtful one is dropped, not acted on), a filter for the
+phrases Whisper invents from silence, and levelling of quiet microphones. If it cannot hear you: `jarvis --mic-test`
+(shows the microphone, whether Windows has it muted, and a live level), `jarvis --list-mics`, `--mic "name"`.
+While music plays loudly through speakers the microphone hears it too; say Jarvis a little louder or use a headset.
+Playing a song reuses the YouTube / YouTube Music tab that is already open instead of opening a second one.
