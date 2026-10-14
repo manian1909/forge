@@ -29,5 +29,6 @@ d.save(out)
 
 print("saved", out, "|", [p.text for p in Document(out).paragraphs][:4])
 ```
+- Never save a .docx/.xlsx/.pptx/.pdf with write_file or `Set-Content`: it would be plain text and Word says "unreadable content". Use the recipe above (write_file does convert plain text to .docx, but only the recipe gives tables and styles).
 - Read a .docx: `"\n".join(p.text for p in Document(path).paragraphs)`; tables are in `Document(path).tables`.
 - PDF from Word content: build it with the pdf skill instead of converting.

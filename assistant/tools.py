@@ -14,9 +14,41 @@ import re
 import subprocess
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 
 MAX_OUTPUT = 4000
+BINARY_FORMATS = {".xlsx": "Excel", ".xlsm": "Excel", ".pptx": "slides", ".pdf": "pdf", ".png": "charts", ".jpg": "charts",
+                  ".jpeg": "charts", ".zip": "python zipfile", ".doc": "Word (save as .docx)", ".xls": "Excel (save as .xlsx)"}
+
+
+def text_to_docx(content, path):
+    """Save text as a real .docx: '# ' headings, '- ' bullets, '1. ' numbers, blank-line separated paragraphs."""
+    from docx import Document
+    d = Document()
+    for line in content.replace("\r\n", "\n").split("\n"):
+        s = line.rstrip()
+        if not s.strip():
+            continue
+        m = re.match(r"(#{1,3})\s+(.*)", s)
+        if m:
+            d.add_heading(m.group(2), level=len(m.group(1)))
+        elif re.match(r"\s*[-*•]\s+", s):
+            d.add_paragraph(re.sub(r"^\s*[-*•]\s+", "", s), style="List Bullet")
+        elif re.match(r"\s*\d+[.)]\s+", s):
+            d.add_paragraph(re.sub(r"^\s*\d+[.)]\s+", "", s), style="List Number")
+        else:
+            d.add_paragraph(s)
+    d.save(str(path))
+
+
+def docx_to_text(path):
+    from docx import Document
+    doc = Document(str(path))
+    lines = [p.text for p in doc.paragraphs]
+    for t in doc.tables:
+        lines += [" | ".join(c.text for c in r.cells) for r in t.rows]
+    return "\n".join(lines)
 PYLIB = Path(__file__).resolve().parent / "pylib"   # helper modules the model can import (forge_office)
 IS_WINDOWS = platform.system() == "Windows"
 SHELL_NAME = "PowerShell" if IS_WINDOWS else "bash"
@@ -379,7 +411,10 @@ class Toolbox:
         return out
 
     def read_file(self, path):
-        return self._resolve(path).read_text(encoding="utf-8", errors="replace")
+        target = self._resolve(path)
+        if target.suffix.lower() == ".docx" and target.is_file() and zipfile.is_zipfile(target):
+            return docx_to_text(target)
+        return target.read_text(encoding="utf-8", errors="replace")
 
     def inside_sandbox(self, path):
         return self.sandbox is None or Path(os.path.realpath(path)).is_relative_to(os.path.realpath(self.sandbox))
@@ -390,6 +425,13 @@ class Toolbox:
             return (f"Error: jarvis may only write inside {self.sandbox}. It can read other folders, but "
                     f"{target} is outside it. Save the file in the jarvis folder instead (use a relative path).")
         target.parent.mkdir(parents=True, exist_ok=True)
+        kind = target.suffix.lower()
+        if kind == ".docx":
+            text_to_docx(content, target)   # a .docx is a zip: plain text under that name makes Word report "unreadable content"
+            return f"Wrote a real Word document ({len(content)} chars of text) to {self._display(target)}"
+        if kind in BINARY_FORMATS:
+            return (f"Not written: {kind} is a binary format and write_file only saves text, so the file would be "
+                    f"corrupt. Use run_python with the {BINARY_FORMATS[kind]} recipe instead.")
         target.write_text(content, encoding="utf-8")
         return f"Wrote {len(content)} chars to {self._display(target)}"
 
