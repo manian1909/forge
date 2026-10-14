@@ -169,6 +169,15 @@ TOOL_SCHEMAS = [
         ["name"],
     ),
     _fn(
+        "media_control",
+        "Control music and the PC volume: next or previous song, pause, resume, mute, and volume up, down or an exact "
+        "percentage. This is the ONLY way to change the volume; PowerShell has no volume command.",
+        {"action": {"type": "string", "enum": ["next", "prev", "pause", "resume", "volume_up", "volume_down", "volume_set",
+                                               "mute", "unmute"]},
+         "value": {"type": "integer", "description": "volume_set: the level 0-100; volume_up/down: how many points (default 10, 'a bit' = 5)"}},
+        ["action"],
+    ),
+    _fn(
         "send_email",
         "Send an email from the user's Outlook. The user is asked to approve it first.",
         {"to": {"type": "string", "description": "recipient address(es), separated by ;"},
@@ -443,6 +452,10 @@ class Toolbox:
     def open_app(self, name):
         from . import desktop
         return desktop.open_app(name)
+
+    def media_control(self, action, value=None):
+        from . import media
+        return media.do(action, None if value is None else int(value))
 
     def send_email(self, to, subject, body, cc=None):
         from . import desktop

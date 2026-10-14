@@ -27,7 +27,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
-from . import experience, jail, serve, skills, speech, tasks
+from . import commands, experience, jail, serve, skills, speech, tasks
 from .agent import VERIFIED_FOOTER, Agent
 from .governor import GovernedLLM, Governor, free_mb
 from .prompts import ASSISTANT_NAME
@@ -73,6 +73,7 @@ TOOL_INFO = {
     "http_request": "call any web API for live data (GET runs freely, POST/PUT/DELETE ask first)",
     "play_music": "find a song on YouTube and play it in Chrome", "open_url": "open a website in Chrome",
     "open_app": "start an installed app (Outlook, Excel, Spotify...)", "send_email": "send a mail from Outlook (asks first)",
+    "media_control": "next/previous song, pause, volume up/down/set, mute",
 }
 
 
@@ -416,7 +417,26 @@ class Jarvis:
         parts = [p for p in (skills.render(picked), experience.render(example) if example else "") if p]
         return "\n\n".join(parts), [s.name for s in picked], example
 
+    def quick_command(self, text):
+        """Run a simple command (next song, volume 40%, play <song>) without the model. Returns the reply, or None."""
+        cmd = commands.parse(text)
+        if cmd is None:
+            return None
+        try:
+            reply = commands.run(cmd)
+        except Exception as e:  # noqa: BLE001 - e.g. no audio device; the reply says so instead of crashing the chat
+            reply = f"Could not do that: {type(e).__name__}: {e}"
+        # keep it in the conversation so "a bit lower" or "what did you play?" still make sense afterwards
+        self.agent.messages += [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]
+        self.transcript += [("you", text), (ASSISTANT_NAME.lower(), reply)]
+        return reply
+
     def run_task(self, text):
+        reply = self.quick_command(text)
+        if reply is not None:
+            self.console.print(f"[dim]  (done directly, no model needed)[/dim]\n{reply}\n")
+            self.speaker.say(reply)
+            return reply
         hints, picked, example = self.hints_for(text)
         used, _ = self.context_used(text + hints)
         if used > AUTO_COMPACT * self.window and len(self.agent.messages) > 2:
