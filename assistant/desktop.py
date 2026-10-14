@@ -79,8 +79,38 @@ def find_video(query):
     return ids[0] if ids else None
 
 
+def reuse_tab(url, service):
+    """Point an already open YouTube / YouTube Music tab at ``url`` (so a new song does not add a second tab and a second
+    song playing at the same time). True if a tab was reused. Windows UI Automation through PowerShell; no admin."""
+    script = Path(__file__).with_name("reuse_tab.ps1")
+    if sys.platform != "win32" or not script.exists() or not chrome_path():
+        return False
+    try:
+        out = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(script)],
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20,
+                             env={**os.environ, "JARVIS_URL": url, "JARVIS_SERVICE": service}, creationflags=0x08000000).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return out.strip().startswith("REUSED")
+
+
+def _show(url, service):
+    """Open ``url`` in the tab that is already playing, else in a new tab (pausing whatever else is playing first)."""
+    if reuse_tab(url, service):
+        return "in the tab that was already open"
+    try:
+        from . import media
+        if media.audio_active(0.3):
+            media.press("play_pause")            # something else is playing: stop it, or two songs play at once
+            time.sleep(0.3)
+    except Exception:  # noqa: BLE001 - no audio device: just open the page
+        pass
+    open_url(url)
+    return "in a new tab"
+
+
 def play_music(query, service="youtube_music"):
-    """Find the song on YouTube and open it in Chrome so it starts playing."""
+    """Find the song on YouTube and play it in Chrome, in the tab that is already playing if there is one."""
     query = (query or "").strip()
     if not query:
         return "Error: say which song to play."
@@ -95,12 +125,12 @@ def play_music(query, service="youtube_music"):
     if not vid:
         page = "search?q=" if host.startswith("music") else "results?search_query="
         url = f"https://{host}/{page}{urllib.parse.quote_plus(query)}"
-        open_url(url)
+        _show(url, service)
         return (f"Could not find the video{why}, so the search page for '{query}' is open instead. "
                 "Tell the user to click the first result.")
     url = f"https://{host}/watch?v={vid}"
-    open_url(url)
-    return f"Playing '{query}': opened {url} in Chrome. It should start by itself."
+    where = _show(url, service)
+    return f"Playing '{query}' {where}. It should start by itself."
 
 
 def _start_menu_match(name):

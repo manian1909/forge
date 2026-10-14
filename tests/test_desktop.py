@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from assistant import desktop, skills  # noqa: E402
+from assistant import desktop, media, skills  # noqa: E402
 from assistant.tools import TOOL_NAMES, Toolbox, needs_confirmation  # noqa: E402
 
 
@@ -13,6 +13,8 @@ def fake_browser(monkeypatch):
     opened = []
     monkeypatch.setattr(desktop, "chrome_path", lambda: "chrome.exe")
     monkeypatch.setattr(desktop.subprocess, "Popen", lambda argv, **kw: opened.append(argv))
+    monkeypatch.setattr(desktop, "reuse_tab", lambda url, service: False)       # no real Chrome tabs are touched
+    monkeypatch.setattr(media, "audio_active", lambda seconds=0.6: False)
     return opened
 
 
@@ -67,3 +69,28 @@ def test_tools_are_registered_and_skill_matches():
     assert {"play_music", "open_url", "open_app", "send_email"} <= set(TOOL_NAMES)
     found = skills.match("play mere rashke qamar on youtube music", skills.load_skills())
     assert "desktop" in [s.name for s in found]
+
+
+def test_a_second_song_reuses_the_open_tab(monkeypatch):
+    opened = fake_browser(monkeypatch)
+    seen = []
+    monkeypatch.setattr(desktop, "reuse_tab", lambda url, service: seen.append((url, service)) or True)
+    monkeypatch.setattr(desktop, "find_video", lambda q: "abcdefghijk")
+    out = desktop.play_music("believer")
+    assert seen == [("https://music.youtube.com/watch?v=abcdefghijk", "youtube_music")]
+    assert opened == [] and "already open" in out
+
+
+def test_a_new_tab_pauses_whatever_else_is_playing(monkeypatch):
+    opened = fake_browser(monkeypatch)
+    pressed = []
+    monkeypatch.setattr(media, "audio_active", lambda seconds=0.6: True)
+    monkeypatch.setattr(media, "press", pressed.append)
+    monkeypatch.setattr(desktop, "find_video", lambda q: "abcdefghijk")
+    assert "new tab" in desktop.play_music("believer")
+    assert pressed == ["play_pause"] and len(opened) == 1
+
+
+def test_the_tab_switcher_script_ships_and_targets_youtube_tabs():
+    text = desktop.Path(desktop.__file__).with_name("reuse_tab.ps1").read_text(encoding="utf-8")
+    assert "Address and search bar" in text and "YouTube Music" in text and "Audio playing" in text
