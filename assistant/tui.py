@@ -71,6 +71,8 @@ TOOL_INFO = {
     "write_file": "create or overwrite files (asks first)", "read_file": "read a file", "list_dir": "list a folder",
     "web_search": "search the web", "fetch_url": "read a web page",
     "http_request": "call any web API for live data (GET runs freely, POST/PUT/DELETE ask first)",
+    "play_music": "find a song on YouTube and play it in Chrome", "open_url": "open a website in Chrome",
+    "open_app": "start an installed app (Outlook, Excel, Spotify...)", "send_email": "send a mail from Outlook (asks first)",
 }
 
 

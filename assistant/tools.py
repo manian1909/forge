@@ -148,12 +148,40 @@ TOOL_SCHEMAS = [
          "json": {"type": "object", "description": "JSON body for POST/PUT/PATCH"}},
         ["url"],
     ),
+    _fn(
+        "play_music",
+        "Play a song on the user's PC: finds it on YouTube and opens it in Chrome, where it starts playing. Use it for "
+        "'play <song>' requests. service is 'youtube_music' (default) or 'youtube'.",
+        {"query": {"type": "string", "description": "song name and artist, e.g. 'Mere Rashke Qamar'"},
+         "service": {"type": "string", "enum": ["youtube_music", "youtube"]}},
+        ["query"],
+    ),
+    _fn(
+        "open_url",
+        "Open a web address in the user's browser (Chrome). Use it for 'open youtube', 'open gmail' and similar.",
+        {"url": {"type": "string", "description": "e.g. https://www.youtube.com"}},
+        ["url"],
+    ),
+    _fn(
+        "open_app",
+        "Start an installed program on the user's PC by name, e.g. Chrome, Outlook, Excel, Spotify, Notepad.",
+        {"name": {"type": "string", "description": "the app's name only, no path or arguments"}},
+        ["name"],
+    ),
+    _fn(
+        "send_email",
+        "Send an email from the user's Outlook. The user is asked to approve it first.",
+        {"to": {"type": "string", "description": "recipient address(es), separated by ;"},
+         "subject": {"type": "string"}, "body": {"type": "string"},
+         "cc": {"type": "string", "description": "optional"}},
+        ["to", "subject", "body"],
+    ),
 ]
 
 TOOL_NAMES = [t["function"]["name"] for t in TOOL_SCHEMAS]
 
 # tools that change the machine; the CLI asks before running these
-NEEDS_CONFIRMATION = {"run_python", "run_shell", "write_file"}
+NEEDS_CONFIRMATION = {"run_python", "run_shell", "write_file", "send_email"}
 
 
 def needs_confirmation(name, args=None):
@@ -402,6 +430,23 @@ class Toolbox:
                 out.append("[This page draws its content with JavaScript, so only the title and description above could be read. "
                            "For full rendering install a browser once: pip install playwright && python -m playwright install chromium-headless-shell]")
         return "\n".join(out) or "(the page returned no readable text)"
+
+    # desktop actions run in this process, outside the jail (see desktop.py)
+    def play_music(self, query, service="youtube_music"):
+        from . import desktop
+        return desktop.play_music(query, service)
+
+    def open_url(self, url):
+        from . import desktop
+        return desktop.open_url(url)
+
+    def open_app(self, name):
+        from . import desktop
+        return desktop.open_app(name)
+
+    def send_email(self, to, subject, body, cc=None):
+        from . import desktop
+        return desktop.send_email(to, subject, body, cc)
 
     def http_request(self, url, method="GET", params=None, headers=None, json=None):
         import httpx
