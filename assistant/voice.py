@@ -365,6 +365,8 @@ class Voice:
     def run(self):
         self.mic.start()
         self.log("listening for 'Hey Jarvis'. Ctrl+C stops.")
+        if media.mic_muted():
+            self.log("WARNING: your microphone is muted in Windows (Settings > System > Sound > Input), so I cannot hear you.")
         loud = []
         idle_since = time.time()
         while True:

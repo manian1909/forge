@@ -50,6 +50,19 @@ def audio_active(seconds=0.6):
         return None
 
 
+def mic_muted():
+    """True/False for the default microphone's Windows mute switch, None if it cannot be read."""
+    try:
+        from ctypes import POINTER, cast
+        from comtypes import CLSCTX_ALL
+        from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+        dev = AudioUtilities.GetDeviceEnumerator().GetDefaultAudioEndpoint(1, 1)      # eCapture, eConsole
+        ep = cast(dev.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None), POINTER(IAudioEndpointVolume))
+        return bool(ep.GetMute())
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def get_volume():
     """Master volume 0-100, or None if it cannot be read."""
     try:
