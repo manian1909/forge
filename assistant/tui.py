@@ -28,7 +28,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
-from . import commands, experience, jail, serve, skills, speech, tasks
+from . import commands, experience, explain, jail, serve, skills, speech, tasks
 from .agent import VERIFIED_FOOTER, Agent
 from .governor import GovernedLLM, Governor, free_mb
 from .prompts import ASSISTANT_NAME
@@ -433,12 +433,62 @@ class Jarvis:
         self.transcript += [("you", text), (ASSISTANT_NAME.lower(), reply)]
         return reply
 
+    def explain_pdf(self, text, pdf):
+        """Explain a PDF in the chat: figures described by the vision model, pages explained chunk by chunk (explain.py)."""
+        self.last_request = text
+        self.speaker.stop()
+        self._streamed = False
+        mark = len(self.agent.messages)
+
+        def say(msg):
+            self.busy(False)
+            self.console.print(f"[dim]  {msg}[/dim]")
+            self.busy(True, msg)
+
+        def section(label):
+            self.end_text()
+            self.busy(False)
+            self.console.print(f"\n[bold cyan]-- {label} --[/bold cyan]")
+            self.busy(True, f"explaining {label}")
+
+        self.console.print(f"[dim]  (explaining {pdf.name} directly: no tool loop needed)[/dim]")
+        self.busy(True, "reading the PDF")
+        self.task_running = True
+        try:
+            full = explain.explain(self.agent_llm, pdf, text, self.workspace, say, self.on_token, section)
+        except KeyboardInterrupt:
+            self.end_text()
+            self.busy(False)
+            self.task_running = False
+            self.console.print("\n[yellow]stopped.[/yellow]")
+            return None
+        except Exception as e:  # noqa: BLE001
+            self.end_text()
+            self.busy(False)
+            self.task_running = False
+            self.console.print(f"\n[red]error:[/red] {e}")
+            return None
+        self.task_running = False
+        self.end_text()
+        self.busy(False)
+        self.console.print()
+        # follow-up questions ("explain page 3 again") need the gist, not 50 pages of text in the 8k window
+        gist = full[-2500:]
+        self.agent.messages += [{"role": "user", "content": text},
+                                {"role": "assistant", "content": f"(I explained {pdf.name} in the chat. The end of that answer:)\n{gist}"}]
+        self.transcript += [("you", text), (ASSISTANT_NAME.lower(), full)]
+        self.last_turn = None
+        return full
+
     def run_task(self, text):
         reply = self.quick_command(text)
         if reply is not None:
             self.console.print(f"[dim]  (done directly, no model needed)[/dim]\n{reply}\n")
             self.speaker.say(reply)
             return reply
+        pdf = explain.find_pdf(text, self.workspace, [default_folder()])
+        if pdf is not None:
+            return self.explain_pdf(text, pdf)
         hints, picked, example = self.hints_for(text)
         used, _ = self.context_used(text + hints)
         if used > AUTO_COMPACT * self.window and len(self.agent.messages) > 2:

@@ -42,7 +42,9 @@ def parse_pages(spec, total):
 
 def has_figure(page):
     """True when a pdfplumber page has an embedded picture or a drawn diagram (many lines/curves)."""
-    return bool(page.images) or len(page.curves) + len(page.lines) + len(page.rects) > 25
+    area = (page.width * page.height) or 1
+    big_image = any(im["width"] * im["height"] > 0.04 * area for im in page.images)   # not a logo on every slide
+    return big_image or len(page.curves) + len(page.lines) + len(page.rects) > 25
 
 
 def render_page(pdf_path, index, out_png, scale=1.6):
@@ -84,6 +86,84 @@ def describe_image(png_path):
         return f"(could not reach the vision model: {e})"
 
 
+def pdf_key(pdf_path):
+    return hashlib.sha1(open(pdf_path, "rb").read()).hexdigest()[:12]
+
+
+def figure_pages(pdf_path):
+    """Zero-based indexes of the pages that hold a picture or a drawn diagram."""
+    import pdfplumber
+    with pdfplumber.open(str(pdf_path)) as plumb:
+        return [i for i, page in enumerate(plumb.pages) if has_figure(page)]
+
+
+def is_described(pdf_path, i):
+    return f"{pdf_key(pdf_path)}:{i}" in _load_cache()
+
+
+def describe_figure(pdf_path, i, out_dir, describe=True):
+    """Render page i to a PNG and describe it (cached). Returns (png path, description or None)."""
+    key = f"{pdf_key(pdf_path)}:{i}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    png = out_dir / f"{pdf_path.stem}_p{i + 1:03d}.png"
+    if not png.exists():
+        render_page(pdf_path, i, png)
+    cache = _load_cache()
+    desc = cache.get(key)
+    if desc is None and describe:
+        desc = describe_image(png)
+        if not desc.startswith("("):
+            cache[key] = desc
+            _cache_file().write_text(json.dumps(cache), encoding="utf-8")
+    return png, desc
+
+
+def has_model(name=None):
+    name = name or VISION_MODEL
+    try:
+        tags = httpx.get(f"{OLLAMA}/api/tags", timeout=10).json().get("models", [])
+    except (httpx.HTTPError, ValueError):
+        return False
+    base = name.split(":")[0]
+    return any(m["name"] == name or (":" not in name and m["name"].split(":")[0] == base) for m in tags)
+
+
+def pull_model(say=print, name=None):
+    """Download the vision model through Ollama, reporting progress. Returns True when it is installed."""
+    name = name or VISION_MODEL
+    last = -10
+    try:
+        with httpx.stream("POST", f"{OLLAMA}/api/pull", json={"model": name, "stream": True}, timeout=None) as r:
+            for line in r.iter_lines():
+                if not line:
+                    continue
+                ev = json.loads(line)
+                if ev.get("total") and ev.get("completed") is not None:
+                    pct = int(ev["completed"] * 100 / ev["total"])
+                    if pct >= last + 10:
+                        last = pct
+                        say(f"downloading {name}: {pct}%")
+                if ev.get("error"):
+                    say(f"could not download {name}: {ev['error']}")
+                    return False
+    except httpx.HTTPError as e:
+        say(f"could not download {name}: {e}")
+        return False
+    return has_model(name)
+
+
+def unload_model(name=None):
+    try:
+        httpx.post(f"{OLLAMA}/api/generate", json={"model": name or VISION_MODEL, "keep_alive": 0}, timeout=30)
+    except httpx.HTTPError:
+        pass
+
+
+def page_texts(pdf_path):
+    from pypdf import PdfReader
+    return [(p.extract_text() or "").strip() for p in PdfReader(str(pdf_path)).pages]
+
+
 def read_pdf(pdf_path, pages, out_dir, describe=True):
     """Text of the chosen pages plus a description and PNG path for each page that has a figure."""
     import pdfplumber
@@ -97,9 +177,6 @@ def read_pdf(pdf_path, pages, out_dir, describe=True):
     note = f"(showing the first {MAX_PAGES} of {len(idx)} pages, ask for the next range after)\n" if len(idx) > MAX_PAGES else ""
     idx = idx[:MAX_PAGES]
 
-    key = hashlib.sha1(open(pdf_path, "rb").read()).hexdigest()[:12]
-    cache = _load_cache()
-    out_dir.mkdir(parents=True, exist_ok=True)
     parts = [f"{pdf_path.name}: {total} pages. {note}"]
     with pdfplumber.open(str(pdf_path)) as plumb:
         for i in idx:
@@ -107,14 +184,6 @@ def read_pdf(pdf_path, pages, out_dir, describe=True):
             parts.append(f"\n=== Page {i + 1} of {total} ===\n{text or '(no text on this page)'}")
             if not has_figure(plumb.pages[i]):
                 continue
-            png = out_dir / f"{pdf_path.stem}_p{i + 1:03d}.png"
-            if not png.exists():
-                render_page(pdf_path, i, png)
-            desc = cache.get(f"{key}:{i}")
-            if desc is None and describe:
-                desc = describe_image(png)
-                if not desc.startswith("("):
-                    cache[f"{key}:{i}"] = desc
-                    _cache_file().write_text(json.dumps(cache), encoding="utf-8")
+            png, desc = describe_figure(pdf_path, i, out_dir, describe)
             parts.append(f"[FIGURE on page {i + 1}, image file: {png.as_posix()}]\n{desc or '(not described)'}")
     return "\n".join(parts)
