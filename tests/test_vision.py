@@ -23,3 +23,12 @@ def test_read_pdf_text_and_figure(tmp_path, monkeypatch):
     out = Toolbox(tmp_path).call("read_pdf", {"path": str(f), "pages": "1-2"})
     assert "routers forward packets" in out and "a box diagram of two routers" in out
     assert (tmp_path / "figures" / "t_p002.png").exists()
+
+
+def test_explain_pdf_picks_lecture_not_pdf_maker():
+    from assistant import skills
+    sk = skills.load_skills()
+    ask = "explain me this ppt in detail , without skipping anything C:/Users/x/5.2.pdf"
+    assert [s.name for s in skills.match(ask, sk)] == ["lecture"]
+    maker = [s.name for s in skills.match("make a pdf invoice for 3 pens", sk)]
+    assert "pdf" in maker and "lecture" not in maker

@@ -1,7 +1,8 @@
 ---
 name: lecture
 description: explain a lecture PDF as a friendly study guide, with its figures described and shown
-triggers: lecture|explain (this|the|my) (pdf|chapter|slides?)|study (guide|session)|chapter \d+
+triggers: \b(explain|teach|summari[sz]e|walk me through|go through|break down|understand|revise|study|simplify)\b.{0,80}\b(pdf|ppt|pptx|slides?|lecture|chapter|notes|deck)\b|\b(pdf|ppt|pptx|slides?|lecture|chapter|notes|deck)\b.{0,80}\b(explain|teach|summari[sz]e|walk me through|go through|break down|understand|revise|study|simplify)\b|\blecture\b|study (guide|session)
+replaces: pdf,slides,word
 ---
 Lecture explainer recipe. The PDF is long and your context is small, so work in chunks:
 1. `read_pdf(path, "1-5")` gives the text of up to 6 pages. A page with a diagram or table also has a `[FIGURE ... image file: ...]` block: use that description, never invent what a figure shows.
