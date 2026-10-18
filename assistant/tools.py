@@ -155,6 +155,13 @@ TOOL_SCHEMAS = [
         ["path"],
     ),
     _fn(
+        "read_pdf",
+        "Read pages of a PDF (lecture slides, papers). Gives each page's text, and for pages with a figure, diagram or "
+        "table a description from a vision model plus the saved image file. At most 6 pages per call.",
+        {"path": {"type": "string"}, "pages": {"type": "string", "description": "e.g. 1-5 or 3,7 (default 1-6)"}},
+        ["path"],
+    ),
+    _fn(
         "write_file",
         "Create or overwrite a text file with the given content.",
         {"path": {"type": "string"}, "content": {"type": "string"}},
@@ -325,7 +332,7 @@ class Toolbox:
             result = _truncate(fn(**(args or {})), 9000 if name in ("fetch_url", "http_request") else MAX_OUTPUT)
             if self.harden and name in ("run_shell", "run_python"):
                 result = self._add_hints(result, name)
-            if self.harden and name in ("read_file", "fetch_url", "web_search", "http_request"):
+            if self.harden and name in ("read_file", "read_pdf", "fetch_url", "web_search", "http_request"):
                 result = UNTRUSTED_BANNER + result
             return result
         except TypeError as e:
@@ -415,6 +422,13 @@ class Toolbox:
         if target.suffix.lower() == ".docx" and target.is_file() and zipfile.is_zipfile(target):
             return docx_to_text(target)
         return target.read_text(encoding="utf-8", errors="replace")
+
+    def read_pdf(self, path, pages="1-6"):
+        from . import vision
+        target = self._resolve(path)
+        if not target.is_file():
+            return f"Error: {self._display(target)} not found"
+        return vision.read_pdf(target, pages, self.workspace / "figures")
 
     def inside_sandbox(self, path):
         return self.sandbox is None or Path(os.path.realpath(path)).is_relative_to(os.path.realpath(self.sandbox))
