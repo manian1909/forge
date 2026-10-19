@@ -76,7 +76,7 @@ GitHub does not host files this large, so the GGUF lives on Hugging Face:
 
 ```powershell
 pip install huggingface_hub
-python scripts\download_weights.py          # saves modelsorge-8b-Q4_K_M.gguf (5 GB)
+python scripts\download_weights.py          # saves models\forge-8b-Q4_K_M.gguf (5 GB)
 ollama create forge -f Modelfile
 jarvis --check
 ```
