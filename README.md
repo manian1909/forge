@@ -1,15 +1,84 @@
-# Forge: a local assistant fine-tuned for coding and the shell
+# Forge: a coding and shell assistant I fine-tuned and run on a 4 GB laptop GPU
 
-Forge is my own fine-tune of **Qwen3-8B** (or **Qwen3-14B**). It chats, writes and
-debugs code, and acts on the machine through tools: it can run Python and
-PowerShell, read and write files, search the web and fetch pages. It runs fully
-offline on a laptop with a 4 GB GPU, through llama.cpp.
+Forge is **Qwen3-8B fine-tuned with QLoRA** on chat, code, function-calling and
+self-generated tool-use data, exported to a 5 GB `Q4_K_M` GGUF. Around it sits
+**Jarvis**, a terminal agent that gives the model hands: it runs Python and
+PowerShell, reads and writes files (including Word, Excel and PDF), searches
+the web, calls APIs, and can be driven by voice. All of it runs offline on an
+i5-12450H laptop with an RTX 3050 (4 GB VRAM).
 
 ```
 you> which 3 processes are using the most memory?
   > run_shell
     Get-Process | Sort-Object WorkingSet -Descending | Select-Object -First 3 Name, ...
 forge> Chrome (1.9 GB), Code (1.1 GB) and Teams (640 MB) are using the most memory.
+```
+
+## Numbers
+
+| | |
+|---|---|
+| Base model | Qwen3-8B (Apache-2.0), 4-bit QLoRA, rank 32, context 4096 for training |
+| Training data | 9,439 examples / 8.67M tokens: UltraChat, Magicoder, Hermes function-calling, 510 verified tool-use runs, identity rows |
+| Training run | 590 steps on one free Kaggle T4, about 7.4 h, loss 1.40 to about 0.7 |
+| Export | merged, `Q4_K_M` GGUF, 5.03 GB |
+| Speed on the laptop | about 9 tok/s generation, 22 of 36 layers on the 4 GB GPU, 8k context |
+| Agent | 15 tools, 364 automated tests, 10 task skills (PDF, Excel, Word, slides, charts, APIs, lectures...) |
+| Code | about 14k lines of Python, 99 commits |
+
+### Benchmarks
+
+I wrote a crash-safe benchmark harness (`bench/`) that runs real tasks with real
+tools in a scratch folder and grades the *outcome* (unit tests pass, the file has the
+right content, the number is right), not the wording.
+
+| Run | Tasks | Pass rate |
+|---|---|---|
+| Forge, first measurement | 76 | 71% |
+| Forge after prompt and tool hardening | 76 | 78% |
+| Forge with code checks and loop guards | 76 | **88%** (67/76) |
+| Stock `qwen3:8b`, same harness | 76 | 88% (67/76) |
+| **Forge, held-out set (never tuned on)** | 34 | **88%** (30/34) |
+
+Held-out breakdown: easy 9/9, medium 16/17, hard 5/8. Strong on math and logic,
+Python tool use, PowerShell, knowledge questions and robustness (it refuses to
+follow instructions hidden in a file it reads, and says so when a folder is missing instead of
+inventing files). Weak spots, listed honestly: exact-count instructions ("exactly 7 words"),
+hard multi-step coding, and appending to files without overwriting.
+
+On the 76-task set Forge matches the stock model on score and is faster:
+about 7 tok/s against 5 tok/s and 54 minutes of compute against 77, because the
+fine-tune answers more directly and uses fewer tokens. The point of the project was owning the whole
+pipeline (data, training, export, agent, evaluation), and I report the parity plainly instead of
+claiming a win the numbers don't show.
+
+Full reports (open the HTML files in a browser):
+
+- [Held-out benchmark](docs/benchmarks/heldout_forge.html) ([markdown](docs/benchmarks/heldout_forge.md))
+- [Main benchmark, Forge](docs/benchmarks/main76_forge.html) and [stock Qwen3-8B](docs/benchmarks/main76_qwen3-8b-stock.html)
+- [Jarvis system report](docs/reports/Jarvis_Report_local.html): how one request flows through the agent, with diagrams (works offline; [lighter version](docs/reports/Jarvis_Report.html) loads diagrams from a CDN)
+- [Forge project report (PDF)](docs/reports/Forge_Report.pdf)
+
+## What it can do
+
+- **Code**: writes functions, runs them, reads the traceback and fixes them; checks code in its own answer before replying.
+- **Shell and files**: PowerShell, Python, read/write/list files, `.docx` read and write, PDF reading with figures described by a small local vision model.
+- **Office work**: skills for Excel (formulas, charts), Word, slides and PDFs, matched automatically to the request.
+- **Web**: search, fetch pages, call REST APIs with keys kept out of the transcript.
+- **Memory**: remembers tool turns that worked and recalls the closest one; `/compact` summarises long chats; `/undo`, `/retry`.
+- **Voice**: say "Jarvis" to wake it; quick commands (volume, next song, open things) skip the model entirely.
+- **Standby worker**: background jobs that pause when a game starts or RAM runs low, unload the model, and resume from saved state.
+- **Safe by default**: commands run as a low-integrity Windows process that can only write inside one folder; risky tools ask first.
+
+## Get the weights
+
+GitHub does not host files this large, so the GGUF lives on Hugging Face:
+
+```powershell
+pip install huggingface_hub
+python scripts\download_weights.py          # saves modelsorge-8b-Q4_K_M.gguf (5 GB)
+ollama create forge -f Modelfile
+jarvis --check
 ```
 
 ## How it's built
@@ -65,6 +134,7 @@ settings:
 For more speed, export with `--quant iq4_xs` or `q3_k_m` so more layers fit on
 the GPU. The 14B model works too, but at Q4 it's 9 GB, so most of it runs on the
 CPU and it is noticeably slower.
+
 
 ## Usage
 

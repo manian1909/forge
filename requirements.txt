@@ -25,3 +25,4 @@ faster-whisper>=1.0
 sounddevice>=0.4
 pycaw>=20240210
 pywin32>=306  # Outlook mail (send_email)
+huggingface_hub
