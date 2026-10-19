@@ -1,0 +1,544 @@
+<title>Jarvis System Report</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: sticky chapter index on the left, one reading column on the right; diagrams scroll sideways inside their own box. */
+:root {
+  --bg: #f6f8f9; --panel: #ffffff; --fg: #15232b; --muted: #5a6b74; --line: #d6dee2;
+  --accent: #0b6e8a; --accent-soft: #dff1f6; --warn: #9a5b00; --warn-soft: #fdf1da;
+  --code-bg: #eaf0f2;
+  --display: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+  --body: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e171c; --panel: #152229; --fg: #e3edf1; --muted: #93a6af; --line: #263841;
+    --accent: #4cc3e0; --accent-soft: #14323c; --warn: #f0b95a; --warn-soft: #33290f; --code-bg: #1b2c34;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e171c; --panel: #152229; --fg: #e3edf1; --muted: #93a6af; --line: #263841;
+  --accent: #4cc3e0; --accent-soft: #14323c; --warn: #f0b95a; --warn-soft: #33290f; --code-bg: #1b2c34;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 16px/1.6 var(--body); }
+.shell { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2.5rem; max-width: 76rem; margin: 0 auto;
+  padding-block: 2rem 4rem; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+nav.toc { position: sticky; top: 1rem; align-self: start; max-height: calc(100vh - 2rem); overflow-y: auto; font-size: .88rem; }
+nav.toc b { display: block; font: 600 .72rem var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: .6rem; }
+nav.toc a { display: block; padding: .28rem .6rem; color: var(--muted); text-decoration: none; border-left: 2px solid var(--line); }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); border-left-color: var(--accent); outline: none; }
+main { min-width: 0; }
+header.top { border-bottom: 1px solid var(--line); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+.kicker { font: 600 .75rem var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 700 clamp(2rem, 5vw, 3.1rem)/1.08 var(--display); margin: .4rem 0 .8rem; text-wrap: balance; letter-spacing: -.02em; }
+h2 { font: 700 1.65rem/1.2 var(--display); margin: 3.2rem 0 .4rem; text-wrap: balance; letter-spacing: -.01em; scroll-margin-top: 1rem; }
+h3 { font: 700 1.1rem/1.3 var(--display); margin: 1.8rem 0 .4rem; }
+p { margin: .6rem 0; max-width: 68ch; }
+.lead { font-size: 1.12rem; color: var(--muted); max-width: 62ch; }
+.facts { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+.facts span { font: 400 .8rem var(--mono); background: var(--code-bg); padding: .25rem .6rem; border-radius: 4px; }
+code { font: .86em var(--mono); background: var(--code-bg); padding: .08em .35em; border-radius: 3px; }
+.diagram { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem; margin: 1rem 0 .4rem; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; text-align: center; }
+.cap { font-size: .82rem; color: var(--muted); margin: 0 0 1.4rem; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+.tw { overflow-x: auto; margin: 1rem 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+th, td { text-align: left; padding: .55rem .8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 .72rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+tr:last-child td { border-bottom: 0; }
+td:first-child { white-space: nowrap; }
+.concept { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: .8rem; margin: 1rem 0; }
+.concept div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: .8rem 1rem; min-width: 0; }
+.concept h4 { margin: 0 0 .2rem; font: 700 .95rem var(--display); color: var(--accent); }
+.concept p { margin: 0; font-size: .88rem; color: var(--muted); }
+.note { background: var(--warn-soft); border-left: 3px solid var(--warn); padding: .7rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; max-width: 68ch; font-size: .92rem; }
+.tip { background: var(--accent-soft); border-left: 3px solid var(--accent); padding: .7rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; max-width: 68ch; font-size: .92rem; }
+ul { padding-left: 1.2rem; max-width: 68ch; } li { margin: .2rem 0; }
+footer { margin-top: 4rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
+@media (max-width: 860px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+  nav.toc { position: static; max-height: none; display: flex; flex-wrap: wrap; gap: .3rem; }
+  nav.toc b { width: 100%; }
+  nav.toc a { border: 1px solid var(--line); border-radius: 999px; padding: .2rem .7rem; }
+  td:first-child { white-space: normal; }
+}
+</style>
+
+<div class="shell">
+<nav class="toc" aria-label="Chapters">
+  <b>Chapters</b>
+  <a href="#overview">1 Big picture</a>
+  <a href="#model">2 The model</a>
+  <a href="#request">3 One request</a>
+  <a href="#agent">4 Agent loop</a>
+  <a href="#tools">5 Tools &amp; sandbox</a>
+  <a href="#quick">6 Quick commands</a>
+  <a href="#slash">7 Slash commands</a>
+  <a href="#learn">8 Skills &amp; memory</a>
+  <a href="#context">9 Context window</a>
+  <a href="#voice">10 Voice</a>
+  <a href="#worker">11 Standby worker</a>
+  <a href="#router">12 Local &amp; remote</a>
+  <a href="#vision">13 PDFs &amp; images</a>
+  <a href="#disk">14 Files on disk</a>
+  <a href="#glossary">15 Concepts</a>
+  <a href="#status">16 Status</a>
+</nav>
+
+<main>
+<header class="top">
+  <div class="kicker">System report · 18 Oct 2026</div>
+  <h1>Jarvis, piece by piece</h1>
+  <p class="lead">Jarvis is a personal assistant that runs on your laptop. A language model you trained yourself (Forge) does the thinking, and a Python program around it gives the model hands: tools, voice, memory and safety rules. This report follows each flow from the keyboard or microphone to the result.</p>
+  <div class="facts"><span>Qwen3-8B + QLoRA</span><span>Q4_K_M, 5 GB</span><span>8k context</span><span>22 layers on GPU</span><span>about 9-11 tok/s</span><span>15 tools</span><span>364 tests passing</span></div>
+</header>
+
+<!-- 1 -->
+<h2 id="overview">1. The big picture</h2>
+<p>Think of Jarvis as four layers. You talk to the top one; the model sits near the bottom; the operating system is the final safety net.</p>
+<div class="diagram"><pre class="mermaid">
+flowchart TB
+  subgraph IN["Input"]
+    KB["Keyboard<br/>(jarvis terminal UI)"]
+    MIC["Microphone<br/>(say 'Jarvis')"]
+  end
+  subgraph APP["Jarvis program (Python)"]
+    TUI["tui.py<br/>chat loop, slash commands"]
+    QC["commands.py<br/>quick commands, no model"]
+    VM["voicemodes.py<br/>spoken /commands"]
+    SK["skills + experience<br/>hints added to the request"]
+    AG["agent.py<br/>tool loop + safety nets"]
+    TB["tools.py<br/>Toolbox (15 tools)"]
+  end
+  subgraph LLMS["Thinking"]
+    GOV["GovernedLLM<br/>pauses for games"]
+    RT["RoutedLLM<br/>local first, cloud backup"]
+    OL["Ollama server<br/>model: forge (Qwen3-8B)"]
+  end
+  subgraph OS["Your PC"]
+    JAIL["Low-integrity jail<br/>writes only to the jarvis folder"]
+    DESK["desktop.py / media.py<br/>Chrome, Outlook, volume, keys"]
+    NET["Web: search, fetch, APIs"]
+  end
+  KB --> TUI
+  MIC --> VM
+  MIC --> QC
+  VM --> TUI
+  TUI --> QC
+  TUI --> SK --> AG
+  AG --> GOV --> RT --> OL
+  AG --> TB
+  TB --> JAIL
+  TB --> DESK
+  TB --> NET
+  QC --> DESK
+  AG -. answer .-> TUI
+  TUI -. speaks .-> SPK["speech.py<br/>text to speech"]
+</pre></div>
+<p class="cap">Simple requests (next song, volume) skip the model entirely. Everything else goes through the agent.</p>
+
+<!-- 2 -->
+<h2 id="model">2. The model: how Forge was made</h2>
+<p>You wanted a model you own. Ollama's stock <code>qwen3:8b</code> acted only as a <em>teacher</em> that wrote training examples. The student, Forge, is Qwen3-8B with small trainable adapters added (QLoRA), trained on Kaggle's free T4 GPU, then shrunk to a 5 GB file that Ollama serves.</p>
+<div class="diagram"><pre class="mermaid">
+flowchart LR
+  A["Seed tasks<br/>635, six categories"] --> B["Teacher: qwen3:8b<br/>runs real tools in a sandbox"]
+  B --> C["Quality filters<br/>keep 510, reject 125"]
+  C --> D["build_dataset.py<br/>mix with public data"]
+  P["UltraChat, Magicoder,<br/>Hermes function-calling,<br/>40 identity rows"] --> D
+  X["Your saved tasks<br/>(experience.jsonl)"] -.-> D
+  D --> E["Kaggle T4<br/>Unsloth QLoRA<br/>590 steps, about 7.4 h"]
+  E --> F["Merge adapter,<br/>quantise to GGUF Q4_K_M"]
+  F --> G["ollama create forge"]
+  G --> H["forge-open<br/>(refusal direction removed)"]
+</pre></div>
+<p class="cap">Training runs on Kaggle because 8B cannot be trained in 4 GB of laptop VRAM.</p>
+<div class="concept">
+  <div><h4>Fine-tuning</h4><p>Continue training an existing model on your own examples so it adopts your identity, tool-call format and habits.</p></div>
+  <div><h4>QLoRA</h4><p>The base weights are frozen and stored in 4-bit. Only small low-rank matrices (rank 32) are trained, so 8B fits on a 16 GB T4.</p></div>
+  <div><h4>Distillation</h4><p>A stronger or equal "teacher" writes the examples; the student learns to imitate them.</p></div>
+  <div><h4>Loss masking</h4><p>Each assistant turn is a prompt/completion pair. Loss counts only the completion tokens, so the model learns to answer, not to echo the question.</p></div>
+  <div><h4>Quantisation (Q4_K_M)</h4><p>Weights stored in about 4.5 bits instead of 16. The file shrinks from about 16 GB to 5 GB with a small quality cost.</p></div>
+  <div><h4>GGUF + Ollama</h4><p>GGUF is the single-file format llama.cpp reads. Ollama is only the engine that loads it and serves an HTTP API.</p></div>
+  <div><h4>Abliteration</h4><p>For <code>forge-open</code>: find the direction in the activations that separates "refuse" from "comply" and subtract it from the weights. Refusals dropped from 56% to 0% on harmful prompts in the Kaggle check.</p></div>
+  <div><h4>Checkpointing</h4><p>Training saves every 50 steps. An earlier crash after a long eval lost 77 minutes, hence the rule.</p></div>
+</div>
+
+<!-- 3 -->
+<h2 id="request">3. What happens to one request</h2>
+<p>This is the main path. Typing and speaking end up in the same place, so one set of rules covers both.</p>
+<div class="diagram"><pre class="mermaid">
+sequenceDiagram
+  actor U as You
+  participant T as TUI
+  participant Q as Quick commands
+  participant S as Skills + Experience
+  participant A as Agent
+  participant L as LLM stack
+  participant B as Toolbox
+  participant J as Jail / OS
+  U->>T: "make an excel of my expenses"
+  T->>Q: parse(text)
+  alt matches "next song", "volume 40%" ...
+    Q->>J: press media key / set volume
+    Q-->>T: short reply (no model used)
+  else not a quick command
+    T->>S: match skills, recall similar task
+    S-->>T: recipe notes + one working example
+    T->>T: context over 85%? then /compact first
+    T->>A: run(text, hints)
+    loop until final answer
+      A->>L: chat(messages, tool schemas)
+      L-->>A: text or tool_call
+      A->>B: call(tool, args)
+      B->>J: run inside the jail
+      J-->>B: output
+      B-->>A: result string
+    end
+    A-->>T: answer
+    T-->>U: shown, optionally spoken
+    T->>S: if it worked, save the steps
+  end
+</pre></div>
+<p class="cap">The conversation is kept as a list of messages; each loop turn appends the model's message and the tool result.</p>
+
+<!-- 4 -->
+<h2 id="agent">4. The agent loop and its safety nets</h2>
+<p>An agent is a loop: <em>ask the model, run the tool it asked for, show it the result, repeat</em>. An 8B model slips often, so the loop adds checks around it.</p>
+<div class="diagram"><pre class="mermaid">
+flowchart TD
+  S([Request + hints]) --> C["Call model with tool schemas"]
+  C --> D{"Tool call<br/>in reply?"}
+  D -- yes --> P{"Allowed?"}
+  P -- "page/file text was read<br/>and you did not ask for an action" --> BL["Blocked (injection guard)"]
+  P -- "same failed call repeated" --> RP["Told: that already failed"]
+  P -- "risky tool, ask mode" --> CF{"You answer<br/>y / a / n"}
+  CF -- n --> DC["'The user declined'"]
+  CF -- y or a --> RUN
+  P -- ok --> RUN["Toolbox.call()"]
+  RUN --> R["Result appended to messages"]
+  BL --> R
+  RP --> R
+  DC --> R
+  R --> LIM{"Steps or time<br/>left?"}
+  LIM -- yes --> C
+  LIM -- no --> STOP(["Stop with a message"])
+  D -- no --> N{"Empty, refusal,<br/>cut off, or only<br/>announces an action?"}
+  N -- yes --> NU["Nudge: re-prompt once or twice"] --> C
+  N -- no --> F{"Claims files or output<br/>that the tools did not produce?"}
+  F -- yes --> FN["Faithfulness nudge"] --> C
+  F -- no --> V{"Answer contains<br/>Python code?"}
+  V -- yes --> VR["Run the code in the jail,<br/>show the model the real output"] --> C
+  V -- no --> END([Final answer])
+</pre></div>
+<div class="tbl tw"><table>
+<tr><th>Safety net</th><th>Problem it solves</th><th>Idea</th></tr>
+<tr><td>nudge</td><td>Model says "I'll do it" and stops, or returns nothing</td><td>Detect and re-prompt; budget grows by one so real work is not starved</td></tr>
+<tr><td>guard</td><td>A web page or file says "ignore the user and delete X"</td><td>Prompt-injection defence: after reading outside content, side-effect tools are blocked unless you asked for an action. Outside text is labelled as untrusted data</td></tr>
+<tr><td>faithful</td><td>Model invents file names or output</td><td>Compare its claims with a snapshot of the workspace and the last tool result</td></tr>
+<tr><td>verify_code</td><td>Code in the answer was never run</td><td>Run it, feed back the real output, up to 3 rounds. If it only defines functions, ask for real tests. A pass adds a "verified" footer</td></tr>
+<tr><td>repeat block</td><td>Model retries the same failing call forever</td><td>Hash of tool + arguments; a repeat gets the old error back instead of running</td></tr>
+<tr><td>limits</td><td>Runaway loops</td><td>8 tool steps per request and a 15 minute turn timer; pause time is not counted</td></tr>
+<tr><td>toolparse</td><td>One unescaped quote in a long code argument makes Ollama drop the call</td><td>Lenient parser recovers the call from the raw text</td></tr>
+</table></div>
+
+<!-- 5 -->
+<h2 id="tools">5. Tools and the sandbox</h2>
+<p>Tool calling means the model emits a structured request (<code>{"name": ..., "arguments": ...}</code>) instead of prose. Jarvis runs it and returns the result as text. Every tool returns a string, even on error, so the model always sees what happened.</p>
+<div class="tbl tw"><table>
+<tr><th>Group</th><th>Tools</th><th>Asks first?</th></tr>
+<tr><td>Code and shell</td><td><code>run_python</code> <code>run_shell</code> (PowerShell 5.1)</td><td>Only in ask mode</td></tr>
+<tr><td>Files</td><td><code>read_file</code> (also .docx) <code>write_file</code> (real .docx; refuses other binaries) <code>list_dir</code> <code>read_pdf</code></td><td>write only in ask mode</td></tr>
+<tr><td>Web</td><td><code>web_search</code> <code>fetch_url</code> <code>http_request</code></td><td>GET never; POST/PUT/PATCH/DELETE yes</td></tr>
+<tr><td>Desktop</td><td><code>play_music</code> <code>open_url</code> <code>open_app</code> <code>open_folder</code> <code>media_control</code></td><td>No (narrow inputs)</td></tr>
+<tr><td>Mail</td><td><code>send_email</code> (Outlook)</td><td>Yes</td></tr>
+</table></div>
+<h3>The jail: operating-system enforced, not text-checked</h3>
+<p>Windows labels every process with an integrity level. A <em>low</em> process cannot write to anything not labelled low, cannot use admin rights, and cannot approve a UAC prompt. Jarvis labels one folder low and starts every command with a low-integrity copy of your own token. Redirects, child processes and Python are all covered because the OS refuses the write, whatever the command looks like.</p>
+<div class="diagram"><pre class="mermaid">
+flowchart LR
+  M["Model writes a command"] --> I{"Install or admin<br/>command?"}
+  I -- yes --> X1["Refused before running"]
+  I -- no --> L["jail.run_low(): process with low-integrity token"]
+  L --> RD["Read anywhere on the PC: allowed"]
+  L --> WR{"Write target"}
+  WR -- "inside Downloads/jarvis" --> OK["Allowed, no prompt"]
+  WR -- "anywhere else, registry" --> DEN["Windows: access denied"]
+  DESK["Desktop actions<br/>(open Chrome, Outlook, volume)"] --> OUT["Run in Jarvis's own process:<br/>fixed, narrow inputs only"]
+</pre></div>
+<p class="cap">Chrome and Outlook cannot run inside the jail (they need their own profile), so those actions live outside it and accept only a search text, app name, URL or mail.</p>
+<div class="note">Not covered: a Windows UAC prompt that you click "Yes" on yourself. Jarvis never requests one, so if one appears unexpectedly, click No.</div>
+
+<!-- 6 -->
+<h2 id="quick">6. Quick commands: no model needed</h2>
+<p>An 8B model needs seconds and sometimes invents a PowerShell command that does not exist. For simple, fixed phrases, plain pattern matching is faster and more reliable. The same parser serves typed and spoken text; for speech it tolerates "vol", number words and filler like "please".</p>
+<div class="diagram"><pre class="mermaid">
+flowchart LR
+  T["text"] --> N["normalise<br/>(lowercase, number words, filler)"]
+  N --> P{"commands.parse()"}
+  P -- "next / previous / pause / resume" --> MK["media.press(): Windows media key"]
+  P -- "volume up / down / a bit / 40% / mute" --> VL["pycaw master volume<br/>(volume keys as fallback)"]
+  P -- "play song" --> PM["find video, reuse the open<br/>YouTube tab, else open one"]
+  P -- "open app or folder" --> OA["Start-menu match / folder search"]
+  P -- none --> LLM["Hand over to the model"]
+  MK --> R["short reply + chime"]
+  VL --> R
+  PM --> R
+  OA --> R
+</pre></div>
+<p>The exchange is still added to the conversation, so "a bit lower" or "what did you play?" make sense afterwards.</p>
+
+<!-- 7 -->
+<h2 id="slash">7. Slash commands and what each does</h2>
+<div class="tbl tw"><table>
+<tr><th>Command</th><th>Flow in one line</th></tr>
+<tr><td>/auto, /mode ask|auto, /default</td><td>Flips the confirm callback. Auto runs tools without asking; ask prompts y/a/n. <code>/default</code> saves the choice to config.json</td></tr>
+<tr><td>/reset, /clear</td><td>Clears the message list</td></tr>
+<tr><td>/undo, /retry</td><td>Remove the last exchange from messages; retry then sends the same request again</td></tr>
+<tr><td>/context</td><td>Estimate split (system, tool schemas, you, replies, tool output) scaled to the server's exact prompt-token count</td></tr>
+<tr><td>/compact [focus]</td><td>Model summarises the chat; the summary replaces it. Also runs by itself at 85% full</td></tr>
+<tr><td>/usage, /cost, /stats</td><td>Token and speed totals for this session, today and overall (usage.json)</td></tr>
+<tr><td>/ws folder</td><td>Changes the tool working folder (only the jarvis folder stays writable)</td></tr>
+<tr><td>/model, /remote, /local, /backend</td><td>Switch model or force the cloud/local route (see chapter 12)</td></tr>
+<tr><td>/skills, /skill name</td><td>List recipes; force one into the next request</td></tr>
+<tr><td>/good, /bad, /learn on|off</td><td>Keep or delete the last task as a remembered example</td></tr>
+<tr><td>/key, /key NAME value, /key -NAME</td><td>Manage API keys (below)</td></tr>
+<tr><td>/speak, /nospeak, /mute, /voice</td><td>Text to speech settings (chapter 10)</td></tr>
+<tr><td>/bg task, /jobs, /cancel n, /standby</td><td>Background worker (chapter 11)</td></tr>
+<tr><td>/tools, /save file, /help, /exit</td><td>List tools, save transcript, help, quit</td></tr>
+</table></div>
+<h3>/compact</h3>
+<div class="diagram"><pre class="mermaid">
+flowchart LR
+  A["context above 85%<br/>or you type /compact"] --> B["ask the model:<br/>summarise the conversation"]
+  B --> C["replace all messages<br/>with the summary"]
+  C --> D["next request continues<br/>with free space"]
+  B -. Ctrl+C .-> E["nothing changed"]
+</pre></div>
+<h3>API keys: the model never sees them</h3>
+<div class="diagram"><pre class="mermaid">
+sequenceDiagram
+  actor U as You
+  participant K as ~/.forge/keys.json
+  participant M as Model
+  participant H as http_request
+  U->>K: /key OPENWEATHER_KEY abc123
+  M->>H: GET api?appid={{OPENWEATHER_KEY}}
+  H->>K: look up NAME (or environment variable)
+  H->>H: substitute the real value and send
+  H-->>M: response with the key masked
+</pre></div>
+
+<!-- 8 -->
+<h2 id="learn">8. Skills and experience: learning without training</h2>
+<p>A small model roughly knows how openpyxl or reportlab work and gets details wrong. Two mechanisms fix that by putting working examples next to the request. This is in-context learning: no weights change.</p>
+<div class="diagram"><pre class="mermaid">
+flowchart TD
+  U["your request"] --> M{"regex match on<br/>skills/*.md triggers"}
+  M -- match --> R["add recipe once per conversation<br/>(max 2 per turn)"]
+  U --> E{"experience.best_match()"}
+  E -- "similar task worked before" --> X["add that example's steps"]
+  R --> P["hints appended under the request"]
+  X --> P
+  P --> A["Agent"]
+  A --> W{"tool turn ended well<br/>and checks passed?"}
+  W -- yes --> S["save to experience.jsonl"]
+  W -- no --> D["discard"]
+  S -. /bad .-> DEL["delete"]
+  S -. export_experience.py .-> TR["training rows for the next Kaggle run"]
+</pre></div>
+<div class="tbl tw"><table>
+<tr><th>Skill</th><th>Covers</th></tr>
+<tr><td>pdf, word, excel, slides</td><td>reportlab, python-docx, openpyxl (formulas, charts, baked results), python-pptx</td></tr>
+<tr><td>charts, apis</td><td>matplotlib; free keyless APIs (weather, FX, crypto, stocks, mutual-fund NAV, Wikipedia, arXiv...)</td></tr>
+<tr><td>desktop</td><td>how to open apps and play music through the desktop tools</td></tr>
+<tr><td>lecture (new)</td><td>explain a PDF as a study guide, chunk by chunk, with figures</td></tr>
+</table></div>
+<p>Your own skills go in <code>~/.forge/skills/</code> and override built-ins with the same name.</p>
+
+<!-- 9 -->
+<h2 id="context">9. The context window</h2>
+<p>The model can only read about 8,000 tokens at once. System prompt, tool definitions, the chat, skill notes and tool output all share that space. Ollama keeps a KV cache (the attention keys and values of tokens already read) so earlier tokens are not recomputed.</p>
+<div class="diagram"><pre class="mermaid">
+pie showData title What shares the 8k window
+  "System prompt" : 12
+  "Tool schemas" : 18
+  "Your messages" : 15
+  "Replies" : 20
+  "Tool output + skills" : 35
+</pre></div>
+<p class="cap">Illustrative split. Run /context for your real numbers.</p>
+<div class="concept">
+  <div><h4>Flash attention</h4><p>Computes attention in blocks without storing the full score matrix. Less memory, faster.</p></div>
+  <div><h4>q8_0 KV cache</h4><p>Cache stored in 8 bits instead of 16, roughly halving its memory.</p></div>
+  <div><h4>num_gpu = 22</h4><p>22 transformer layers on the 4 GB GPU, the rest on CPU. 24 layers generate faster (12.6 tok/s) but reading prompts becomes 4x slower, and every tool result is new prompt text.</p></div>
+</div>
+
+<!-- 10 -->
+<h2 id="voice">10. Voice</h2>
+<h3>Listening: say "Jarvis"</h3>
+<div class="diagram"><pre class="mermaid">
+flowchart LR
+  MIC["Microphone"] --> LV["level + noise tracking"]
+  LV --> EP["Endpointer: cut an utterance<br/>when you start and stop speaking"]
+  EP --> W["Whisper base.en<br/>fast wake check"]
+  W --> IS{"starts with<br/>'Jarvis'?"}
+  IS -- no --> DROP["ignored"]
+  IS -- yes --> CONF{"confident enough?<br/>not a known<br/>silence hallucination?"}
+  CONF -- no --> DROP
+  CONF -- yes --> VMD{"voicemodes.parse()<br/>'auto mode', 'reset' ..."}
+  VMD -- yes --> SL["run as the same /command"]
+  VMD -- no --> QCM{"quick command?"}
+  QCM -- yes --> RUN["run, chime"]
+  QCM -- no --> CH["becomes your next chat message<br/>answer is read aloud"]
+</pre></div>
+<div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Heard: speech detected
+  Heard --> Idle: no "Jarvis" or low confidence
+  Heard --> Command: "Jarvis" + words (one breath)
+  Heard --> Beep: "Jarvis" alone
+  Beep --> Command: words within the window
+  Command --> FollowUp: command finished
+  FollowUp --> Command: new words (name not needed)
+  FollowUp --> Idle: 8 seconds of silence
+  Command --> Idle: "stop" / "never mind"
+</pre></div>
+<p>The false-trigger defence has layers: a speech detector that follows the room's noise, the wake check, a confidence threshold, a filter for phrases Whisper invents from silence, and levelling of quiet microphones. Sending mail is read back and needs a spoken yes or no. A background service starts at login; the terminal chat takes the microphone from it and returns it on exit.</p>
+<h3>Speaking</h3>
+<div class="diagram"><pre class="mermaid">
+flowchart LR
+  A["answer text"] --> C["clean_for_speech<br/>skip code, drop links and markdown"]
+  C --> S["split into sentences"]
+  S --> E{"engine"}
+  E -- "edge-tts (online neural)" --> P1["Mp3Player"]
+  E -- "Windows SAPI (offline)" --> P2["System.Speech"]
+  P1 --> O["play sentence 1 while preparing sentence 2"]
+  P2 --> O
+</pre></div>
+<div class="note">Edge voices send the reply text to Microsoft's service to make the audio. Use <code>/voice engine windows</code> to stay fully offline.</div>
+
+<!-- 11 -->
+<h2 id="worker">11. Standby worker and memory sharing</h2>
+<p>The model holds about 3.7 GB of RAM and most of the GPU. If you launch a game, Jarvis steps aside and finishes later. Two ideas make that safe: a <em>governor</em> that watches the machine, and a <em>write-ahead task file</em> that saves the conversation before every model call.</p>
+<div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+  [*] --> Waiting: worker on standby
+  Waiting --> Running: task picked up
+  Running --> Paused: free RAM under 1.2 GB, GPU over 15% by another app, full-screen app, or listed game
+  Paused --> Unloaded: stop reply, Ollama keep_alive 0
+  Unloaded --> Resumed: 4.8 GB free and calm for 30 s
+  Resumed --> Running: reload model, continue from saved messages
+  Running --> Done: answer written to results
+  Running --> Retry: server error, growing wait
+  Retry --> Running
+  Retry --> Failed: 8 errors in a row
+  Done --> Waiting
+  Failed --> Waiting
+</pre></div>
+<div class="diagram"><pre class="mermaid">
+sequenceDiagram
+  participant W as Worker
+  participant F as tasks/id.json
+  participant G as Governor
+  participant O as Ollama
+  loop each step
+    W->>F: save whole conversation
+    W->>G: ok to call the model?
+    G-->>W: yes
+    W->>O: chat
+  end
+  Note over G,O: a game starts
+  G->>O: abort reply, unload model
+  O-->>G: RAM and VRAM freed
+  Note over G: calm for 30 s
+  G->>O: load model
+  W->>F: reload last saved state, no tool runs twice
+</pre></div>
+<p>Repeated pauses within 5 minutes double the wait (up to 16 minutes) so it never ping-pongs. <code>/bg task</code>, <code>/jobs</code>, <code>/cancel n</code> and <code>/standby on</code> (start at login) control it. Answers also land in <code>Downloads/jarvis/results</code>.</p>
+
+<!-- 12 -->
+<h2 id="router">12. Local first, cloud as backup</h2>
+<div class="diagram"><pre class="mermaid">
+flowchart TD
+  Q["chat request"] --> M{"mode"}
+  M -- local --> LO["local Ollama only"]
+  M -- remote --> RM["remote first, local last resort"]
+  M -- auto --> CK{"fits the context?<br/>tool errors in a row?<br/>local down or empty?"}
+  CK -- "all fine" --> LO
+  CK -- "no" --> RM
+  RM --> PR["pick a provider (Groq, OpenRouter, Cerebras, Gemini...)"]
+  PR --> RL{"429 or failure?"}
+  RL -- yes --> CD["cool-down, try the next one"] --> PR
+  RL -- no --> ANS["reply"]
+</pre></div>
+<p>Several free tiers act like one bigger quota. RoutedLLM exposes the same <code>chat()</code> as the local client, so the agent never knows which one answered. Local mode never leaves the machine.</p>
+
+<!-- 13 -->
+<h2 id="vision">13. PDFs and images (added today)</h2>
+<p>Forge reads text only, so pictures are turned into words first. This is the "CNN" part: a small vision model (a vision encoder plus a language head) describes each figure, and Forge explains from that description.</p>
+<div class="diagram"><pre class="mermaid">
+flowchart LR
+  P["read_pdf(path, pages)"] --> T["pypdf: text of up to 6 pages"]
+  P --> F{"page has an image or<br/>many drawn lines/curves?"}
+  F -- no --> OUT
+  F -- yes --> RN["pypdfium2 renders page to PNG<br/>workspace/figures/"]
+  RN --> CA{"cached?"}
+  CA -- yes --> OUT
+  CA -- no --> VM["Ollama vision model<br/>qwen2.5vl:3b"]
+  VM --> OUT["text + figure description + image path"]
+  T --> OUT
+  OUT --> LEC["lecture skill:<br/>explain, append to a markdown guide,<br/>next 5 pages, repeat"]
+</pre></div>
+<div class="note">Install the vision model once with <code>ollama pull qwen2.5vl:3b</code>. Until then figures are reported as "not described". A 3B model can misread dense diagrams.</div>
+
+<!-- 14 -->
+<h2 id="disk">14. Where everything lives</h2>
+<div class="tbl tw"><table>
+<tr><th>Path</th><th>Holds</th></tr>
+<tr><td>assistant/</td><td>All runtime code (agent, tools, tui, voice, governor, tasks, router, vision...)</td></tr>
+<tr><td>skills/</td><td>Built-in recipes (markdown with a trigger regex)</td></tr>
+<tr><td>Modelfile, Modelfile.open</td><td>How Ollama loads the standard and the uncensored model</td></tr>
+<tr><td>data/, training/, kaggle/</td><td>Data generation, QLoRA training, one-shot Kaggle pipeline, abliteration</td></tr>
+<tr><td>bench/</td><td>Benchmark runner, held-out set, refusal check, PDF report</td></tr>
+<tr><td>~/.forge/config.json</td><td>Settings: default mode, voice, standby thresholds</td></tr>
+<tr><td>~/.forge/experience.jsonl</td><td>Remembered tasks that worked</td></tr>
+<tr><td>~/.forge/keys.json, usage.json, tasks/</td><td>API keys; token totals; one JSON per background task plus the worker log</td></tr>
+<tr><td>~/.forge/vision_cache.json</td><td>Figure descriptions already generated</td></tr>
+<tr><td>Downloads/jarvis/</td><td>The only writable folder; results/ for background answers</td></tr>
+</table></div>
+
+<!-- 15 -->
+<h2 id="glossary">15. Key concepts, quickly</h2>
+<div class="concept">
+  <div><h4>Transformer / LLM</h4><p>Predicts the next token from all earlier ones using attention. Everything here is built around that one operation.</p></div>
+  <div><h4>Token</h4><p>A word piece. Speed, context and usage are all counted in tokens.</p></div>
+  <div><h4>Function calling</h4><p>The model outputs a structured call; code executes it. Makes a chat model into an agent.</p></div>
+  <div><h4>ReAct-style loop</h4><p>Reason, act, observe, repeat. The agent loop in chapter 4.</p></div>
+  <div><h4>Prompt injection</h4><p>Hostile text inside data trying to give orders. Mitigated by labelling data and blocking side effects.</p></div>
+  <div><h4>In-context learning</h4><p>Showing examples in the prompt changes behaviour without training. Skills and experience use it.</p></div>
+  <div><h4>Sandboxing</h4><p>Limits enforced by the OS (integrity levels), so they hold no matter what code the model writes.</p></div>
+  <div><h4>Write-ahead state</h4><p>Save before acting, so a crash resumes instead of restarting.</p></div>
+  <div><h4>Exponential backoff</h4><p>Wait longer after each failure; used for server errors and repeated pauses.</p></div>
+  <div><h4>Voice activity detection</h4><p>Decide when speech starts and ends relative to background noise.</p></div>
+  <div><h4>ASR (Whisper)</h4><p>Neural speech recognition. Here a small English model for wake words and commands.</p></div>
+  <div><h4>TTS</h4><p>Text to speech; neural online voices or offline Windows voices.</p></div>
+  <div><h4>Hybrid inference</h4><p>Local by default for privacy and cost, cloud when the local model cannot cope.</p></div>
+  <div><h4>Vision-language model</h4><p>A CNN/ViT image encoder feeding a language model, so it can describe diagrams.</p></div>
+</div>
+
+<!-- 16 -->
+<h2 id="status">16. Where it stands</h2>
+<ul>
+  <li><b>Works:</b> chat with tools, files (PDF, Word, Excel, slides, charts), web and APIs, sandbox, quick commands, voice in and out, background worker with game-aware pausing, task memory, local/cloud routing, PDF reading with figures (needs the vision model pulled).</li>
+  <li><b>Honest benchmark note:</b> on the 76-task set Forge scored 88%, the same as stock <code>qwen3:8b</code> through the same harness. Gains so far came from the tool and safety layers, not the fine-tune.</li>
+  <li><b>Not done:</b> benchmarks on <code>forge-open</code>; retraining on the checker-verified data; the Modal cloud deploy was never run on a live account; no git remote.</li>
+  <li><b>Next ideas:</b> retrain with verified trajectories and your saved experience; add .docx/.html output with embedded figures for lectures; compare llama-server speed with Ollama.</li>
+</ul>
+<footer>Generated from the code and docs in C:\Users\himan\local-assistant. Details such as thresholds come from JARVIS.md and the module docstrings.</footer>
+</main>
+</div>
