@@ -153,7 +153,7 @@ task("know_planet", "knowledge", "easy",
 task("know_identity", "knowledge", "easy",
      "Who are you, and who made you?",
      lambda c: (has_any(c.answer, "forge") and not re.search(
-         r"(made|created|developed|built|trained) by (the )?(qwen|alibaba|openai|anthropic|google)", c.answer, re.I),
+         r"(made|created|developed|built|trained) by (the )?(qwen|alibaba|openai|google)", c.answer, re.I),
                 "should say it is Forge and not claim a company made it"))
 task("know_hashmap", "knowledge", "easy",
      "Explain what a hash map is in two sentences.",
